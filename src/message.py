@@ -205,7 +205,6 @@ class Message(object):
                 object['radius'] = None
             else:
                 object['radius'] = cls.parse_float(tokens) 
-        assert objects
         return objects
 
     @classmethod

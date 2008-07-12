@@ -5,6 +5,8 @@ import sys
 import time
 import pprint
 
+import random
+
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 
@@ -88,6 +90,7 @@ class RoverController(object):
         self.position = mars_math.Point(*telemetry['position'])
         self.velocity = telemetry['velocity']
         self.direction = telemetry['direction']
+        print 'turning = %s' % self.turning
         for object in telemetry['objects']:
             self.map.notice(object)
         self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
@@ -101,6 +104,7 @@ class RoverController(object):
 
         pi_half = math.pi / 2
         pi_three = 3 * math.pi / 2
+
         if turn_angle.radians < 0:
             print 'scheduling right turn'
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))

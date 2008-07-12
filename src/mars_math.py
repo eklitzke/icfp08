@@ -3,6 +3,13 @@ import math
 def to_radians(deg):
     return deg / 180.0 * math.pi
 
+def normalize_turn_angle(rads):
+    while rads > math.pi:
+        rads = -2 * math.pi + rads
+    while rads < (-math.pi):
+        rads = 2 * math.pi + rads
+    return rads
+
 class Ellipse(object):
     '''Given the min/max start parameters sent by the server, calculates the
     ellipse constants as seen in
@@ -30,6 +37,7 @@ class Point(object):
 
 class Angle(object):
     def __init__(self, radians):
+        print 'in angle'
         self.radians = radians
         self.degrees = self.radians * 180 / math.pi
     
@@ -38,6 +46,13 @@ class Angle(object):
 
     def invert(self):
         return Angle(-1 * self.radians)
+
+def TurnAngle(Angle):
+    def __init__(self, radians):
+        print 'in turn angle'
+        radians = normalize_turn_angle(radians)
+        print 'calling %s' % super(TurnAngle, self).__init__
+        super(TurnAngle, self).__init__(radians)
 
 class Vector(object):
     def __init__(self, pos, speed, angle):
@@ -111,34 +126,34 @@ def steer_to_point(rover_vec, omega, dest):
                 # do a right turn
                 turning_angle = rover_vec.angle.radians + (math.pi * 0.5)
                 t = turning_angle / omega
-                return Angle(turning_angle), t
+                return TurnAngle(turning_angle), t
             else:
                 # do a left turn
                 turning_angle = (1.5 * math.pi) - rover_vec.angle.radians
                 t = turning_angle / omega
-                return Angle(turning_angle), t
+                return TurnAngle(turning_angle), t
         else:
             if angle_points_right(rover_vec.angle):
                 # do a left turn
                 turning_angle = (math.pi * 0.5) - rover_vec.angle.radians
                 t = turning_angle / omega
-                return Angle(turning_angle), t
+                return TurnAngle(turning_angle), t
             else:
                 # do a righ turn
                 turning_angle = rover_vec.angle.radians - (math.pi * 0.5)
                 t = turning_angle / omega
-                return Angle(turning_angle), t
+                return TurnAngle(turning_angle), t
     elif abs(y_prime) <= 0.001:
         if x_prime < 0:
             # need to turn west
             turning_angle = math.pi - rover_vec.angle.radians
             t = turning_angle / omega
-            return Angle(turning_angle), t
+            return TurnAngle(turning_angle), t
         else:
             # need to turn east
             turning_angle = -rover_vec.angle.radians
             t = turning_angle / omega
-            return Angle(turning_angle), t
+            return TurnAngle(turning_angle), t
     else:
         turning_angle = math.atan(y_prime / x_prime)
     print 'turning angle init %s' % turning_angle
@@ -166,6 +181,7 @@ def steer_to_point(rover_vec, omega, dest):
     # Adjust the turn angle to take into account the rover vector
     turning_angle -= rover_vec.angle.radians
     t = abs(turning_angle / omega)
-    return Angle(turning_angle), t
+    print 'returing %s' % TurnAngle(turning_angle)
+    return TurnAngle(turning_angle), t
 
 # vim: et ts=4 sw=4

@@ -96,7 +96,29 @@ def steer_to_point(rover_vec, omega, dest):
 	# now calculate the new angle
 	# FIXME: maybe need to adjust this by 180 degrees
 	turning_angle = math.atan(y_prime / x_prime)
-	turning_angle = math.atan(y_prime / x_prime) - turning_angle
+	print 'turning angle init %s' % turning_angle
+	print 'y, x = %s %s' % (y_prime, x_prime)
+	ny, nx = math.sin(turning_angle), math.cos(turning_angle)
+	if (ny * y_prime < 0):
+		turning_angle += math.pi
+		ny, nx = math.sin(turning_angle), math.cos(turning_angle)
+	print 'ny, nx = %s %s' % (ny, nx)
+	#if (y_prime > 0) and (x_prime < 0): turning_angle -= math.pi
+	#turning_angle = math.atan(y_prime / x_prime) - turning_angle
+
+
+	if (ny > 0) and (nx < 0):
+		turning_angle -= math.pi
+
+	if turning_angle >= math.pi:
+		turning_angle -= (2 * math.pi)
+	
+	print 'ANGLE TO DEST IS %s' % turning_angle
+	print 'MY ANGLE IS %s' % rover_vec.angle.radians
+
+	#turning_angle = rover_vec.angle.radians - turning_angle
+	turning_angle -= rover_vec.angle.radians
+	print 'ANGLE TURNING BY %s' % turning_angle
 
 	print 'Need to turn by %s radians' % turning_angle
 

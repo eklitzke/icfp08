@@ -95,12 +95,20 @@ class RoverController(object):
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
         turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, self.origin)
-        if 0 <= turn_angle.radians < math.pi:
+
+        # turning angle should be in the range -pi to pi
+        assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians
+
+        pi_half = math.pi / 2
+        pi_three = 3 * math.pi / 2
+        if turn_angle.radians < 0:
+            print 'scheduling right turn'
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
             def turn_left():
                 self.client.sendMessage(Message.create(ACCELERATE, LEFT))
             reactor.callLater(t, turn_left)
-        else:
+        elif turn_angle.radians > 0:
+            print 'scheduling left turn'
             self.client.sendMessage(Message.create(ACCELERATE, LEFT))
             def turn_right():
                 self.client.sendMessage(Message.create(ACCELERATE, RIGHT))

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+# restart server after it dies, since it dies every client disconnect (ugh)
+while true; do
+    ./server $@
+done

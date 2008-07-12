@@ -1,17 +1,20 @@
-import sys
-import time
+import logging
 import select
 import socket
+import sys
+import time
+import pprint
+
+from twisted.internet import reactor
+from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 
 # local imports
 import event
 import message
 import mars_math
+import utils
 
 RECV_SIZE = 4096 # should be way more than enough
-
-from twisted.internet import reactor
-from twisted.internet.protocol import Protocol, ClientFactory
 
 class Client(object):
 	def __init__(self, host, port):
@@ -101,18 +104,50 @@ class Client(object):
 		sys.exit(0)
 
 class TwistedClient(Protocol): 
-    def connectionMade(self): 
-        print "connection made"
+    log = logging.getLogger('TwistedClient')
+    log.setLevel(logging.INFO)
 
-class TwistedClientFactory(ClientFactory):
+    def __init__(self): 
+        # for storing input
+        self.buf = []
+
+    def connectionMade(self): 
+        self.log.info("connection made")
+
+    def dataReceived(self, data):
+        """This is called by twisted every time the client socket receives data
+        Args:
+            data -- str, data
+        """
+        self.buf.extend(data)
+        while True:
+            try:
+                idx = self.buf.index(';')
+            except ValueError:
+                break
+            msg_s = ''.join(self.buf[:idx + 1])
+            del self.buf[:idx + 1]
+            msg = message.Message.parse(msg_s) 
+            self.log.debug('msg: %r', msg)
+            self.messageReceived(msg)
+
+    def messageReceived(self, msg): 
+        """This is called every time the client receives a message.
+        Args:
+            msg -- dict, the parsed message dict, see message.Message
+        """
+        self.log.info('received %r', msg['type']) 
+
+class TwistedClientFactory(ReconnectingClientFactory):
     protocol = TwistedClient
+    log = logging.getLogger('TwistedClient')
 
     def clientConnectionFailed(self, connector, reason):
-        print "connection failed:", reason
+        self.log.error('connection failed')
         reactor.stop()
 
-    def clientConnectionLost(self, reason):
-        print "connection lost", reason
+    def clientConnectionLost(self, connector, reason):
+        self.log.error('connection lost')
         reactor.stop() 
 
 if __name__ == '__main__':
@@ -129,7 +164,12 @@ if __name__ == '__main__':
         icfp_client = Client(sys.argv[1], int(sys.argv[2]))
         icfp_client.run()
     else:
+        # this creates clients when connections occur
         clientFactory = TwistedClientFactory()
+
+        # the twisted reactor is a singleton in the app
+        # you can do things with it like:
+        #   reactor.crash, reactor.callLater, reactor.stop, reactor.callFromThread
         reactor.connectTCP(host, port, clientFactory)
         reactor.run()
 

@@ -72,49 +72,50 @@ def parse_message(data):
 
 class Message(object): 
     @classmethod
-    def parse(cls, input): 
-        result = []
-        for message in input.split(';'): 
-            tokens = message.split()
-            if tokens:
-                result.append(cls._parse(tokens))
-        return result
-
-    @classmethod
-    def _parse(cls, tokens):
+    def parse(cls, msg):
+        tokens = msg.split() 
+        assert tokens[-1] == ';'
+        tokens.pop()
         assert tokens
         result = {
+                'type': '',
                 'telemetry': {}, 
-                'crash': False, 
                 'time_stamp': -1,
-                'crater': False,
-                'killed': False,
                 'end': False,
                 'score': -1,
                 'duration': -1,
-                'success': False,
                 }
         token = tokens.pop(0) 
         if token == 'T':
+            result['type'] = 'telemetry'
             result['time_stamp'] = cls.parse_float(tokens)
             result['telemetry'] = cls.parse_telemetry(tokens)
         elif token == 'B': 
-            result['crash'] = True
+            result['type'] = 'crash'
             result['time_stamp'] = cls.parse_float(tokens)
         elif token == 'C':
-            result['crater'] = True
+            result['type'] = 'crater'
             result['time_stamp'] = cls.parse_float(tokens)
         elif token == 'K':
-            result['killed'] = True
+            result['type'] = 'killed'
             result['time_stamp'] = cls.parse_float(tokens)
         elif token == 'E':
-            result['end'] = True
+            result['type'] = 'end'
             result['duration'] = cls.parse_float(tokens)
         elif token == 'S':
-            result['success'] = True
+            result['type'] = 'success'
             result['time_stamp'] = cls.parse_float(tokens)
-        assert  not tokens
+        elif token == 'I':
+            result['type'] = 'initial'
+            result['time_stamp'] = cls.parse_float(tokens)
+            result['initial'] = cls.parse_initial(tokens)
+        else:
+            raise ValueError('unknown message type: ' + token)
         return result
+
+    @classmethod
+    def parse_initial(cls, tokens): 
+        return {} 
 
     @classmethod
     def parse_telemetry(cls, tokens): 

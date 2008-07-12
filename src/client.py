@@ -16,6 +16,10 @@ from message import *
 import mars_math
 import utils
 
+r = math.sin(math.pi / 4) * 5
+BASE_POINTS = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0), (r, r), (r, -r), (-r, -r), (-r, r))
+del r
+
 # The docs say the processing time is less than 20 milliseconds
 PROCESSING_TIME = 0.015
 
@@ -140,11 +144,12 @@ class RoverController(object):
         # target.
 
         # Sample 4 points around the circle:
-        home_base_points = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0))
         d = 0.0
         home_point = None
         normsq = lambda (x, y): (self.position.x - x)**2 + (self.position.y - y)**2
-        for pt in home_base_points:
+
+        # TODO: only need to do this if we're close to the home base
+        for pt in BASE_POINTS:
             if normsq(pt) > d:
                 d = normsq(pt)
                 home_point = pt

@@ -1,5 +1,5 @@
 from unittest import main, TestCase
-from message import Message
+from message import *
 
 
 class TestParseSampleTelemetry(TestCase): 
@@ -10,8 +10,8 @@ class TestParseSampleTelemetry(TestCase):
 
     def test(self): 
         result = Message.parse(self.sample_message)
-        assert result[0]['telemetry']
-        tel = result[0]['telemetry']
+        assert result['type'] == 'telemetry'
+        tel = result['telemetry']
         self.assertEquals(tel['position'][0], -234.040)
         self.assertEquals(tel['position'][1], 811.100)
         self.assertEquals(tel['direction'], 47.5)

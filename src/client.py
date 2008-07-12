@@ -100,9 +100,11 @@ class RoverController(object):
             def turn_left():
                 self.client.sendMessage(Message.create(ACCELERATE, LEFT))
             reactor.callLater(t, turn_left)
-            print 'need to turn right'
         else:
-            print 'need to turn left'
+            self.client.sendMessage(Message.create(ACCELERATE, LEFT))
+            def turn_right():
+                self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
+            reactor.callLater(t, turn_right)
 
     def setInitial(self, initial):
         """This is called with initial data"""

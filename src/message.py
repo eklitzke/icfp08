@@ -3,7 +3,7 @@ import math
 MESS_TELEMETRY = 1
 
 def safe_split(s, sep, n):
-	split = s.split(sep)
+	split = s.split(sep, n - 1)
 	while len(split) < n:
 		split.append('')
 	return split
@@ -16,12 +16,12 @@ def parse_message(data):
 		_, dx, dy, time_limit, min_sens, max_sens, max_speed, max_turn, max_hard_turn = data.strip().split(' ')
 		mess_dict['dx'] = dx
 		mess_dict['dy'] = dy
-		mess_dict['time_limit'] = time_limit
-		mess_dict['min_sens'] = min_sens
-		mess_dict['max_sens'] = max_sens
-		mess_dict['max_speed'] = max_speed
-		mess_dict['max_turn'] = max_turn
-		mess_dict['max_hard_turn'] = max_hard_turn
+		mess_dict['time_limit'] = int(time_limit)
+		mess_dict['min_sens'] = float(min_sens)
+		mess_dict['max_sens'] = float(max_sens)
+		mess_dict['max_speed'] = float(max_speed)
+		mess_dict['max_turn'] = float(max_turn)
+		mess_dict['max_hard_turn'] = float(max_hard_turn)
 	if type == 'T':
 		mess_dict['type'] = 'telemetry'
 		_, time_stamp, vehicle_ctl, vx, vy, dir, speed, object_str = safe_split(data, ' ', 8)
@@ -34,4 +34,6 @@ def parse_message(data):
 		mess_dict['direction'] = {'degrees': float(dir), 'radians': float(dir) * math.pi / 180.0}
 		mess_dict['speed'] = float(speed)
 		mess_dict['objects'] = []
+
+		#TODO: parse the object string
 	return mess_dict

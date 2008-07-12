@@ -6,6 +6,7 @@ import socket
 # local imports
 import event
 import message
+import mars_math
 
 RECV_SIZE = 4096 # should be way more than enough
 
@@ -16,6 +17,7 @@ class Client(object):
 		self.event_queue = event.EventQueue()
 
 		self.mtime = 0 # martian time, in milliseconds
+		self.vector = None
 	
 	def log(self, s):
 		print s
@@ -28,9 +30,35 @@ class Client(object):
 	
 	def handle_message(self, msg):
 		'''Handles a message from the "server"'''
-		self.log('handle_message(%r)' % msg)
 		mess = message.parse_message(msg)
-		print mess
+		self.log('handle_message: %s' % mess)
+
+		if mess['type'] == 'initial':
+			self.vector = None # this is the only time the vector can be None
+			self.time_limit = mess['time_limit']
+			self.min_sens = mess['min_sens']
+			self.max_sens = mess['max_sens']
+			self.max_speed = mess['max_speed']
+			self.max_turn = mess['max_turn']
+			self.max_hard_turn = mess['max_hard_turn']
+
+			# this is a special case -- everything else should fall through and
+			# take an action based on the current state. for the initial
+			# message we wait until we get telemetry data (which happens
+			# IMMEDIATELY, i.e. at mtime = 0)
+			return
+
+		elif mess['type'] == 'telemetry':
+			self.mtime = mess['time_stamp']
+
+			pos = mars_math.Point(mess['x_pos'], mess['y_pos'])
+			ang = mars_math.Angle(mess['direction']['radians'])
+			self.vector = mars_math.Vector(pos, mess['speed'], ang)
+
+		elif mess['type'] == 'something else':
+			pass
+
+		# do something
 
 	def schedule_event(self, callback, args, delta_t):
 		future_time = time.time() + delta_t

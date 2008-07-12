@@ -26,7 +26,7 @@ class Point(object):
 		return math.sqrt(self.x**2 + self.y**2)
 
 class Angle(object):
-	def __init__(object, radians):
+	def __init__(self, radians):
 		self.radians = float(radians) / (2 * math.pi)
 		self.degrees = self.radians * 180 / math.pi
 	
@@ -37,19 +37,13 @@ class Angle(object):
 		return Angle(-1 * self.radians)
 
 class Vector(object):
-	def __init__(self, s, angle, pos=None):
-		self.s = float(s)
-
+	def __init__(self, pos, speed, angle):
+		self.pos = pos
+		self.speed = float(speed)
 		self.angle = angle
 
-		# aliases
-		self.speed = self.s
-		self.angle = self.thea
-		
-		self.pos = pos if pos is not None else Point(0, 0)
-
-		self.vx = self.speed * math.cos(self.theta)
-		self.vy = self.speed * math.cos(self.theta)
+		self.vx = self.speed * math.cos(self.angle.radians)
+		self.vy = self.speed * math.cos(self.angle.radians)
 
 	def future_position(self, t):
 		vec = Point(self.vx * t, self.vy * t)

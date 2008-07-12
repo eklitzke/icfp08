@@ -99,4 +99,4 @@ def steer_to_point(rover_vec, omega, dest):
 	turning_angle = Angle(rover_vec.angle.radians - turning_angle)
 
 	t = turning_angle.radians / omega
-	return turning_angle.radians, t
+	return turning_angle, t

@@ -39,7 +39,6 @@ def parse_message(data):
 		if object_str:
 			objects = object_str.split(' ')
 			while objects:
-				print objects
 				obj = {}
 				if objects[0] == 'b':
 					_, x_pos, y_pos, radius = objects[:4]
@@ -51,6 +50,13 @@ def parse_message(data):
 				elif objects[0] == 'c':
 					_, x_pos, y_pos, radius = objects[:4]
 					obj['type'] = 'crater'
+					obj['x_pos'] = float(x_pos)
+					obj['y_pos'] = float(y_pos)
+					obj['radius'] = float(radius)
+					objects = objects[4:]
+				elif objects[0] == 'h':
+					_, x_pos, y_pos, radius = objects[:4]
+					obj['type'] = 'home'
 					obj['x_pos'] = float(x_pos)
 					obj['y_pos'] = float(y_pos)
 					obj['radius'] = float(radius)
@@ -67,7 +73,6 @@ def parse_message(data):
 
 				mess_dict['objects'].append(obj)
 
-		#TODO: parse the object string
 	return mess_dict
 
 class Message(object): 

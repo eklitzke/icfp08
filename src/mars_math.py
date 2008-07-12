@@ -189,6 +189,7 @@ def find_headings(source, objects, samples=100):
     def origin_score(direction):
         """return a score between 0 and 1 for how close the direction is toward the origin"""
         diff = abs(direction - origin_dir)
+        diff = math.fmod(diff, 2 * math.PI)
         return 1.0 - (diff / abs(direction))
 
     def occlusion_score(direction):

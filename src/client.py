@@ -16,6 +16,51 @@ import utils
 
 RECV_SIZE = 4096 # should be way more than enough
 
+class RoverController(object):
+    """responsible for sending and receiving messages from the client"""
+
+    log = logging.getLogger('RoverController') 
+
+    def __init__(self, client):
+        self.client = client
+        self.map_size = -1, -1
+        self.time_limit = -1
+        self.min_sensor = -1
+        self.max_sensor = -1
+        self.max_speed = -1
+        self.max_turn = -1
+        self.max_hard_turn = -1 
+        self.velocity = -1 
+        self.objects = []
+        self.position = -1, -1
+        self.direction = -1
+        self.controls = ''
+        self.initialized = False
+
+    def setTelemetry(self, telemetry):
+        """This is called when telemetry is updated"""
+        self.controls = telemetry['controls']
+        self.position = telemetry['position']
+        self.velocity = telemetry['velocity']
+        self.direction = telemetry['direction']
+
+    def setInitial(self, initial):
+        """This is called with initial data"""
+        self.log.debug('received initial data: %r', initial)
+        self.map_size = initial['dx'], initial['dy']
+        self.time_limit = initial['time_limit']
+        self.min_sensor = initial['min_sensor']
+        self.max_sensor = initial['max_sensor']
+        self.max_speed = initial['max_speed']
+        self.max_turn = initial['max_turn']
+        self.max_hard_turn = initial['max_hard_turn']
+        self.initialized = True
+        self.start() 
+
+    def start(self): 
+        self.log.info('started')
+        pass
+
 class Client(object):
 	def __init__(self, host, port):
 		self.host = host
@@ -110,6 +155,7 @@ class TwistedClient(Protocol):
     def __init__(self): 
         # for storing input
         self.buf = []
+        self.rover_ctl = RoverController(self)
 
     def connectionMade(self): 
         self.log.info("connection made")
@@ -136,7 +182,13 @@ class TwistedClient(Protocol):
         Args:
             msg -- dict, the parsed message dict, see message.Message
         """
-        self.log.info('received %r', msg['type']) 
+        if msg['type'] == 'telemetry':
+            self.rover_ctl.setTelemetry(msg['telemetry'])
+        elif msg['type'] == 'initial':
+            self.rover_ctl.setInitial(msg['initial'])
+        else:
+            self.log.info('unhandled %r', msg['type']) 
+
 
 class TwistedClientFactory(ReconnectingClientFactory):
     protocol = TwistedClient
@@ -170,6 +222,9 @@ if __name__ == '__main__':
         # the twisted reactor is a singleton in the app
         # you can do things with it like:
         #   reactor.crash, reactor.callLater, reactor.stop, reactor.callFromThread
+        #
+        # see here for a simple client info:
+        #   http://twistedmatrix.com/projects/core/documentation/howto/clients.html
         reactor.connectTCP(host, port, clientFactory)
         reactor.run()
 

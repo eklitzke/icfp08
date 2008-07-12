@@ -107,7 +107,6 @@ class Message(object):
             result['time_stamp'] = cls.parse_float(tokens)
         elif token == 'I':
             result['type'] = 'initial'
-            result['time_stamp'] = cls.parse_float(tokens)
             result['initial'] = cls.parse_initial(tokens)
         else:
             raise ValueError('unknown message type: ' + token)
@@ -115,12 +114,16 @@ class Message(object):
 
     @classmethod
     def parse_initial(cls, tokens): 
-        return {} 
+        x = {} 
+        for i in ['dx', 'dy', 'time_limit', 'min_sensor', 'max_sensor',
+                'max_speed', 'max_turn', 'max_hard_turn']:
+            x[i] = cls.parse_float(tokens)  
+        return x
 
     @classmethod
     def parse_telemetry(cls, tokens): 
         tel = {} 
-        tel['control'] = tokens.pop(0)
+        tel['controls'] = tokens.pop(0)
         tel['position'] = cls.parse_float(tokens), cls.parse_float(tokens) 
         tel['direction'] = cls.parse_float(tokens) 
         tel['velocity'] = cls.parse_float(tokens) 

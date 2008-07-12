@@ -2,11 +2,14 @@ from unittest import main, TestCase
 import math
 import mars_math
 
+BIG_HALF_PI = math.pi * 0.51
+BIG_PI = math.pi * 1.01
+
 def assert_is_left_turn(ang):
-    assert -math.pi <= ang.radians <= 0, "%s is not a left turn" % ang.radians
+    assert 0 <= ang.radians <= BIG_PI, "%s is not a left turn (not in 0 <= ang <= %s)" % (ang.radians, BIG_PI)
 
 def assert_is_right_turn(ang):
-    return 0 <= ang.radians <= math.pi, "%s is not a right turn" % ang.radians
+    assert -BIG_PI <= ang.radians <= 0, "%s is not a right turn" % ang.radians
 
 def make_vector(direction_in_degrees, x_pos, y_pos):
     rads = mars_math.to_radians(float(direction_in_degrees))
@@ -22,6 +25,16 @@ class TestTurning(TestCase):
     "Try parsing the sample message from the manual"
 
     def test(self):
+        # rover is at (1, 1) heading straight up. should turn left
+        rover_vec = make_vector(90.0, 1, 1)
+        turn_angle, t = steer_to_origin(rover_vec)
+        assert_is_left_turn(turn_angle)
+
+        # rover is at (1, 1) heading straight down. should turn right
+        rover_vec = make_vector(270.0, 1, 1)
+        turn_angle, t = steer_to_origin(rover_vec)
+        assert_is_right_turn(turn_angle)
+
         # rover is at (5, 0) heading straight up. should turn left
         rover_vec = make_vector(90.0, 5, 0)
         turn_angle, t = steer_to_origin(rover_vec)
@@ -42,13 +55,17 @@ class TestTurning(TestCase):
         turn_angle, t = steer_to_origin(rover_vec)
         assert_is_right_turn(turn_angle)
 
-        # rover is at (1, 1) heading to (2,2). Trying to navigate to (1, 0)
+        # rover is at (1, 1) heading to (2,2). Trying to navigate to (1, 0).
+        # This should be a right turn
         rover_vec = make_vector(45.0, 1, 1)
         turn_angle, t = steer_to_point(rover_vec, 1, 0)
         assert_is_right_turn(turn_angle)
 
-
-
+        # rover is at (1, 1) heading to (2,2). Trying to navigate to (1, 2).
+        # This should be a left turn
+        rover_vec = make_vector(45.0, 1, 1)
+        turn_angle, t = steer_to_point(rover_vec, 1, 2)
+        assert_is_left_turn(turn_angle)
 
 if __name__ == '__main__':
     main() 

@@ -1,7 +1,6 @@
 import math
 
 class Ellipse(object):
-		self.b 	
 	'''Given the min/max start parameters sent by the server, calculates the
 	ellipse constants as seen in
 	http://upload.wikimedia.org/wikipedia/commons/2/24/Elipse.svg'''
@@ -14,3 +13,9 @@ class Ellipse(object):
 
 		self.min = min
 		self.max = max
+
+# terminal velocity = sqrt ( a / k)
+def calculate_coefficients(dt, v, tv):
+	a = float(v) / (dt**2) # need to go back and redo this right with calculus
+	k = a / (tv**2)
+	return a, k

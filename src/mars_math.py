@@ -159,19 +159,32 @@ class RadianRange(object):
         if a < b:
             return a <= x <= b
         else: 
-            return a <= x <= (2 * math.PI) or 0 <= x <= b
+            return a <= x <= (2 * math.pi) or 0 <= x <= b
 
     @classmethod
     def make_smallest_range(self, rads):
         m1 = min(rads)
         m2 = max(rads)
-        if (m2 - m1) <= math.PI:
+        if (m2 - m1) <= math.pi:
             return RadianRange(m1, m2) 
         else:
             return RadianRange(m2, m1)
 
+def radial_difference(d1, d2): 
+    d1 = math.fmod(d1 - d2, 2.0 * math.pi) 
+    d2 = math.fmod(d2 - d1, 2.0 * math.pi)
+    return min(d2, d1)
+
+def radial_sim(d1, d2):
+    d = radial_difference(d1, d2) / (2 * math.pi)
+    return 1.0 - d
+
 def find_headings(source, objects, samples=100):
-    # Say there are n different possible headings we can take 0 ... i .. 2 PI
+    """Find a direction (radians) that we should head to from source, given objects and samples"""
+    # Say there are n different possible headings we can take 0 ... i .. 2 pi
+    # The best heading is the one that is not occluded and that is nearest our
+    # destination, the origin
+
     scores = [0] * samples
     origin = Point(0, 0)
     origin_dir = direction(point, origin)
@@ -188,9 +201,7 @@ def find_headings(source, objects, samples=100):
 
     def origin_score(direction):
         """return a score between 0 and 1 for how close the direction is toward the origin"""
-        diff = abs(direction - origin_dir)
-        diff = math.fmod(diff, 2 * math.PI)
-        return 1.0 - (diff / abs(direction))
+        return radial_sim(direction, origin_dir)
 
     def occlusion_score(direction):
         """return a score between 0 and 1 for how occluded that direction is"""
@@ -201,7 +212,7 @@ def find_headings(source, objects, samples=100):
                 break
         return score
 
-    directions = (2.0 * math.PI * (float(i)/samples) for i in range(samples))
+    directions = (2.0 * math.pi * (float(i)/samples) for i in range(samples))
     return max(occlusion_score(d) + origin_score(d) for d in directions)
 
 def steer_to_point(rover_vec, omega, dest):

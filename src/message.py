@@ -132,10 +132,15 @@ class Message(object):
         while tokens:
             object = {}
             objects.append(object) 
-            object['kind'] = tokens.pop(0) 
-            assert object['kind'] in ['m', 'b', 'c', 'h'], object['kind']
+            kind = tokens.pop(0)
+            object['kind'] = {
+                    'm': 'martian',
+                    'b': 'boulder',
+                    'c': 'crater', 
+                    'h': 'home',
+                }[kind]
             object['position'] = cls.parse_float(tokens), cls.parse_float(tokens) 
-            if object['kind'] == 'm':
+            if object['kind'] == 'martian':
                 object['direction'] = cls.parse_float(tokens)
                 object['speed'] = cls.parse_float(tokens)
                 object['radius'] = None

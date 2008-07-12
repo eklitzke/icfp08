@@ -17,6 +17,7 @@ class Client(object):
 		'''Creates self.sock and initializes it'''
 		self.sock = socket.soket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock.connect((self.host, self.port))
+		self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
 	def schedule_event(self, callback, args, delta_t):
 		future_time = time.time() + delta_t

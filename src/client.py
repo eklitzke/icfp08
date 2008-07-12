@@ -132,6 +132,10 @@ class RoverController(object):
         # FIXME: need to actually test what the best value is here
         PROCESSING_TIME = 0.03
 
+        # not worth scheduling a turn
+        if (t - PROCESSING_TIME) < 0:
+            return
+
         if turn_angle.radians < 0:
             print 'scheduling right turn'
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))

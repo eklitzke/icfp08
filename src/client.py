@@ -93,11 +93,35 @@ class RoverController(object):
         print 'turning = %s' % self.turning
         for object in telemetry['objects']:
             self.map.notice(object)
+            print object
         self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
 
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
-        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, self.origin)
+        # We want to steer for the furthest point on the origin. The reason is
+        # if we have a situation like this:
+        #
+        #  ------------------>..--..
+        #                   /       \
+        #                  |    H    |
+        #                   \       /
+        #                    ',.__.'
+        #
+        # Where the arrow shows the trajectory of the rover, we really want to
+        # be making a pretty hard right to make sure we don't shoot past the
+        # target.
+
+        # Sample 4 points around the circle:
+        home_base_points = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0))
+        d = 0.0
+        home_point = None
+        normsq = lambda (x, y): (self.position.x - x)**2 + (self.position.y - y)**2
+        for pt in home_base_points:
+            if normsq(pt) > d:
+                d = normsq(pt)
+                home_point = pt
+        origin_prime = mars_math.Point(*pt)
+        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, origin_prime)
 
         # turning angle should be in the range -pi to pi
         assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians
@@ -105,22 +129,21 @@ class RoverController(object):
         pi_half = math.pi / 2
         pi_three = 3 * math.pi / 2
 
-        if abs(turn_angle.radians) < 0.10:
-            print 'skipping'
-            return
+        # FIXME: need to actually test what the best value is here
+        PROCESSING_TIME = 0.03
 
         if turn_angle.radians < 0:
             print 'scheduling right turn'
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
             def turn_left():
                 self.client.sendMessage(Message.create(ACCELERATE, LEFT))
-            reactor.callLater(t, turn_left)
+            reactor.callLater(t - PROCESSING_TIME, turn_left)
         elif turn_angle.radians > 0:
             print 'scheduling left turn'
             self.client.sendMessage(Message.create(ACCELERATE, LEFT))
             def turn_right():
                 self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
-            reactor.callLater(t, turn_right)
+            reactor.callLater(t - PROCESSING_TIME, turn_right)
 
     def setInitial(self, initial):
         """This is called with initial data"""

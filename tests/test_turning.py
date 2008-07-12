@@ -2,11 +2,11 @@ from unittest import main, TestCase
 import math
 import mars_math
 
-def is_left_turn(ang):
-    return -math.pi <= ang.radians <= 0
+def assert_is_left_turn(ang):
+    assert -math.pi <= ang.radians <= 0, "%s is not a left turn" % ang.radians
 
-def is_right_turn(ang):
-    return 0 <= ang.radians <= math.pi
+def assert_is_right_turn(ang):
+    return 0 <= ang.radians <= math.pi, "%s is not a right turn" % ang.radians
 
 def make_vector(direction_in_degrees, x_pos, y_pos):
     rads = mars_math.to_radians(float(direction_in_degrees))
@@ -22,22 +22,22 @@ class TestTurning(TestCase):
         # rover is at (5, 0) heading straight up. should turn left
         rover_vec = make_vector(90.0, 5, 0)
         turn_angle, t = steer_to_origin(rover_vec)
-        assert is_left_turn(turn_angle)
+        assert_is_left_turn(turn_angle)
 
         # rover is at (5, 0) heading straight down. should turn right
         rover_vec = make_vector(270.0, 5, 0)
         turn_angle, t = steer_to_origin(rover_vec)
-        assert is_left_turn(turn_angle)
+        assert_is_right_turn(turn_angle)
 
         # rover is at (-5, 0) heading straight up. should turn right
         rover_vec = make_vector(90.0, -5, 0)
         turn_angle, t = steer_to_origin(rover_vec)
-        assert is_right_turn(turn_angle)
+        assert_is_right_turn(turn_angle)
 
         # rover is at (-5, 0) heading straight down. should turn left
         rover_vec = make_vector(270.0, -5, 0)
         turn_angle, t = steer_to_origin(rover_vec)
-        assert is_right_turn(turn_angle)
+        assert_is_right_turn(turn_angle)
 
 
 if __name__ == '__main__':

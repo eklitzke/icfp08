@@ -1,4 +1,5 @@
 import math
+import random
 
 def to_radians(deg):
     return deg / 180.0 * math.pi
@@ -124,9 +125,8 @@ def steer_to_point(rover_vec, omega, dest):
     turning params describes how well the rover can turn
     dest is the point we're trying to navigate to.'''
 
-    x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
-
     rover_pos_copy = rover_vec.pos
+    x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
 
     if edge_case(x_prime, y_prime):
         # move the point forward
@@ -134,33 +134,26 @@ def steer_to_point(rover_vec, omega, dest):
         new_x = rover_vec.pos.x + rover_vec.vx * delta_t
         new_y = rover_vec.pos.y + rover_vec.vy * delta_t
 
-        rover_vec.pos = Position(new_x, new_y)
+        rover_vec.pos = Point(new_x, new_y)
         x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
         while edge_case(x_prime, y_prime):
             rover_vec.pos = rover_pos_copy.perturb()
             new_x = rover_vec.pos.x + rover_vec.vx * delta_t
             new_y = rover_vec.pos.y + rover_vec.vy * delta_t
-            rover_vec.pos = Position(new_x, new_y)
+            rover_vec.pos = Point(new_x, new_y)
             x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
 
     turning_angle = math.atan(y_prime / x_prime)
-    print 'turning angle init %s' % turning_angle
-    print 'y, x = %s %s' % (y_prime, x_prime)
-
     ny, nx = math.sin(turning_angle), math.cos(turning_angle)
     if (ny * y_prime < 0):
         turning_angle += math.pi
         ny, nx = math.sin(turning_angle), math.cos(turning_angle)
-    print 'ny, nx = %s %s' % (ny, nx)
-    #if (y_prime > 0) and (x_prime < 0): turning_angle -= math.pi
-    #turning_angle = math.atan(y_prime / x_prime) - turning_angle
+    print 'ny, nx, angle = %s, %s, %s' % (ny, nx, turning_angle)
 
+    if (x_prime * nx < 0) or (y_prime * ny < 0):
+        print 'atan got fucked up: x, y = %s, nx, ny = %s' % ((x_prime, y_prime), (nx, ny))
+        turning_angle = normalize_turn_angle(turning_angle + math.pi)
 
-    if (ny > 0) and (nx < 0):
-        turning_angle -= math.pi
-
-    if turning_angle >= math.pi:
-        turning_angle -= (2 * math.pi)
     
     # Right now the turning angle represents the angle from the rover to the
     # origin

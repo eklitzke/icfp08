@@ -73,6 +73,7 @@ class TestTurning(TestCase):
         turn_angle, t = steer_to_point(rover_vec, 0, -5)
         assert_is_right_turn(turn_angle)
 
+    # these don't work because of the perturbation strategy
     def xtest_boundary_conditions(self):
         # rover is at (5, 0) heading straight up. should turn left
         rover_vec = make_vector(90.0, 5, 0)

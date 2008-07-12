@@ -1,5 +1,7 @@
 .PHONY: test_message test_turning
 
+all: test_message test_turning
+
 test_message:
 	PYTHONPATH=.:../src python test_message.py
 

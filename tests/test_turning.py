@@ -61,6 +61,18 @@ class TestTurning(TestCase):
         turn_angle, t = steer_to_point(rover_vec, 0, -5)
         assert_is_right_turn(turn_angle)
 
+        # rover is at (1, 1) heading to (2,2). Trying to navigate to (5, 0).
+        # This should be a right turn
+        rover_vec = make_vector(45.0, 1, 1)
+        turn_angle, t = steer_to_point(rover_vec, 0, 5)
+        assert_is_right_turn(turn_angle)
+
+        # rover is at (1, 1) heading to (2,2). Trying to navigate to (-5, 0).
+        # This should be a right turn
+        rover_vec = make_vector(45.0, 1, 1)
+        turn_angle, t = steer_to_point(rover_vec, 0, -5)
+        assert_is_right_turn(turn_angle)
+
     def test_boundary_conditions(self):
         # rover is at (5, 0) heading straight up. should turn left
         rover_vec = make_vector(90.0, 5, 0)

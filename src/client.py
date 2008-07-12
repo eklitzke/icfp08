@@ -5,6 +5,8 @@ import sys
 import time
 import pprint
 
+import random
+
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 
@@ -14,7 +16,8 @@ from message import *
 import mars_math
 import utils
 
-RECV_SIZE = 4096 # should be way more than enough
+# The docs say the processing time is less than 20 milliseconds
+PROCESSING_TIME = 0.015
 
 def similar(a, b, precision=0.95): 
     d = abs(a - b)
@@ -77,6 +80,10 @@ class RoverController(object):
         self.map = Map() 
         self.origin = mars_math.Point(0.0, 0.0)
 
+        # holds up to three intervals
+        self.MAX_INTERVALS = 3
+        self.telemetry_intervals = []
+
     def setTelemetry(self, telemetry):
         """This is called when telemetry is updated"""
         self.telemetry_log.debug('set: %r', telemetry) 
@@ -88,31 +95,91 @@ class RoverController(object):
         self.position = mars_math.Point(*telemetry['position'])
         self.velocity = telemetry['velocity']
         self.direction = telemetry['direction']
+        print 'turning = %s' % self.turning
         for object in telemetry['objects']:
             self.map.notice(object)
         self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
 
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
-        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, self.origin)
+        # INTERVALS LOGIC
+        # The idea here is that when we're turning we schedule compensation
+        # turns later on... so if we need to turn right twenty degrees, we
+        # issue a right turn, and then wait some number of milliseconds and
+        # then compensate by turning left to stabilize the position.
+        #
+        # If the amount of time we have to wait is longer than the average
+        # amount of time between telemetry updates there's no reason in
+        # scheduling the compensation since we'll have better logic soon
+        cur_time = time.time()
+        intervals = self.telemetry_intervals + [cur_time]
+
+        avg_interval = 0
+        if len(intervals) > 1:
+            avg_interval = sum(y - x for x, y in zip(intervals[:-1], intervals[1:])) / (len(intervals) - 1)
+
+        if len(intervals) > self.MAX_INTERVALS:
+            self.telemetry_intervals = intervals[:-1]
+
+        avg_interval *= 0.8
+
+        # We want to steer for the furthest point on the origin. The reason is
+        # if we have a situation like this:
+        #
+        #  ------------------>..--..
+        #                   /       \
+        #                  |    H    |
+        #                   \       /
+        #                    ',.__.'
+        #
+        # Where the arrow shows the trajectory of the rover, we really want to
+        # be making a pretty hard right to make sure we don't shoot past the
+        # target.
+
+        # Sample 4 points around the circle:
+        home_base_points = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0))
+        d = 0.0
+        home_point = None
+        normsq = lambda (x, y): (self.position.x - x)**2 + (self.position.y - y)**2
+        for pt in home_base_points:
+            if normsq(pt) > d:
+                d = normsq(pt)
+                home_point = pt
+        origin_prime = mars_math.Point(*pt)
+        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, origin_prime)
 
         # turning angle should be in the range -pi to pi
         assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians
 
-        pi_half = math.pi / 2
-        pi_three = 3 * math.pi / 2
-        if turn_angle.radians < 0:
-            print 'scheduling right turn'
-            self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
-            def turn_left():
-                self.client.sendMessage(Message.create(ACCELERATE, LEFT))
-            reactor.callLater(t, turn_left)
-        elif turn_angle.radians > 0:
-            print 'scheduling left turn'
-            self.client.sendMessage(Message.create(ACCELERATE, LEFT))
-            def turn_right():
+        compensate_time = t - PROCESSING_TIME
+
+        print 'RAD %s, DEG %s' % (turn_angle.radians, turn_angle.degrees)
+
+        # if the angle is small we should just keep moving forward
+        if abs(turn_angle.degrees) < 5.0:
+            if self.turning == 'L':
                 self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
-            reactor.callLater(t, turn_right)
+            elif self.turning == 'R':
+                self.client.sendMessage(Message.create(ACCELERATE, LEFT))
+            else:
+                self.client.sendMessage(Message.create(ACCELERATE))
+
+        if turn_angle.radians < 0:
+            print 'scheduling right turn of %3.3f degrees' % (abs(turn_angle.degrees),)
+            self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
+
+            if 0 < compensate_time < avg_interval:
+                def turn_left():
+                    self.client.sendMessage(Message.create(ACCELERATE, LEFT))
+                reactor.callLater(compensate_time, turn_left)
+        else:
+            print 'scheduling left turn of %3.3f degrees' % (abs(turn_angle.degrees),)
+            self.client.sendMessage(Message.create(ACCELERATE, LEFT))
+ 
+            if 0 < compensate_time < avg_interval:
+                def turn_right():
+                    self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
+                reactor.callLater(compensate_time, turn_right)
 
     def setInitial(self, initial):
         """This is called with initial data"""
@@ -134,93 +201,6 @@ class RoverController(object):
         def stop():
             self.client.sendMessage(Message.create(BRAKE)) 
         reactor.callLater(3.0, stop)
-
-class Client(object):
-    def __init__(self, host, port):
-        self.host = host
-        self.port = port
-        self.event_queue = event.EventQueue()
-
-        self.mtime = 0 # martian time, in milliseconds
-        self.vector = None
-
-    def log(self, s):
-        print s
-
-    def connect(self):
-        '''Creates self.sock and initializes it'''
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((self.host, self.port))
-        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-
-    def handle_message(self, msg):
-        '''Handles a message from the "server"'''
-        mess = parse_message(msg)
-        self.log('handle_message: %s' % mess)
-
-        if mess['type'] == 'initial':
-            self.vector = None # this is the only time the vector can be None
-            self.time_limit = mess['time_limit']
-            self.min_sens = mess['min_sens']
-            self.max_sens = mess['max_sens']
-            self.max_speed = mess['max_speed']
-            self.max_turn = mess['max_turn']
-            self.max_hard_turn = mess['max_hard_turn']
-
-            # this is a special case -- everything else should fall through and
-            # take an action based on the current state. for the initial
-            # message we wait until we get telemetry data (which happens
-            # IMMEDIATELY, i.e. at mtime = 0)
-            return
-
-        elif mess['type'] == 'telemetry':
-            self.mtime = mess['time_stamp']
-
-            pos = mars_math.Point(mess['x_pos'], mess['y_pos'])
-            ang = mars_math.Angle(mess['direction']['radians'])
-            self.vector = mars_math.Vector(pos, mess['speed'], ang)
-
-        elif mess['type'] == 'something else':
-            pass
-
-        # accelerate!
-        self.send_message('a;')
-
-    def send_message(self, msg):
-        self.sock.send(msg)
-
-    def schedule_event(self, callback, args, delta_t):
-        future_time = time.time() + delta_t
-        self.event_queue.insert(event.Event(callback, args, future_time))
-
-    def scheduler_wait(self):
-        self.log('scheduler_wait')
-        delta_t = self.event_queue.next_time()
-        got_message, _, _ = select.select([self.sock], [], [], delta_t)
-
-        if got_message:
-            data = self.sock.recv(RECV_SIZE)
-            if not data:
-                self.finish() # server has closed its connection
-            messages = [msg.strip() for msg in data.split(';') if msg.strip()]
-            for msg in messages:
-                self.handle_message(msg)
-        else:
-            event = self.event_queue.pop()
-            event.execute()
-
-    def run(self):
-        '''Runs the client'''
-        self.connect()
-
-        # loop in the scheduler
-        while True:
-            self.scheduler_wait()
-
-    def finish(self):
-        '''Runs when the server shuts down'''
-        self.log('Finishing...')
-        sys.exit(0)
 
 class TwistedClient(Protocol): 
     log = logging.getLogger('TwistedClient')
@@ -282,29 +262,20 @@ class TwistedClientFactory(ReconnectingClientFactory):
         reactor.stop() 
 
 if __name__ == '__main__':
-    if '-t' in sys.argv:
-        sys.argv.remove('-t') 
-        twisted = True
-    else:
-        twisted = False
 
     host = sys.argv[1]
     port = int(sys.argv[2])
 
-    if not twisted:
-        icfp_client = Client(sys.argv[1], int(sys.argv[2]))
-        icfp_client.run()
-    else:
-        # this creates clients when connections occur
-        clientFactory = TwistedClientFactory()
+    # this creates clients when connections occur
+    clientFactory = TwistedClientFactory()
 
-        # the twisted reactor is a singleton in the app
-        # you can do things with it like:
-        #   reactor.crash, reactor.callLater, reactor.stop, reactor.callFromThread
-        #
-        # see here for a simple client info:
-        #   http://twistedmatrix.com/projects/core/documentation/howto/clients.html
-        reactor.connectTCP(host, port, clientFactory)
-        reactor.run()
+    # the twisted reactor is a singleton in the app
+    # you can do things with it like:
+    #   reactor.crash, reactor.callLater, reactor.stop, reactor.callFromThread
+    #
+    # see here for a simple client info:
+    #   http://twistedmatrix.com/projects/core/documentation/howto/clients.html
+    reactor.connectTCP(host, port, clientFactory)
+    reactor.run()
 
 # vim: et st=4 sw=4

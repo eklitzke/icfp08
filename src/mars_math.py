@@ -1,56 +1,77 @@
 import math
+import random
 
 def to_radians(deg):
-	return deg / 180.0 * math.pi
+    return deg / 180.0 * math.pi
+
+def to_degrees(rad):
+    return rad * 180.0 / math.pi
+
+def normalize_turn_angle(rads):
+    while rads > math.pi:
+        rads = -2 * math.pi + rads
+    while rads < (-math.pi):
+        rads = 2 * math.pi + rads
+    return rads
 
 class Ellipse(object):
-	'''Given the min/max start parameters sent by the server, calculates the
-	ellipse constants as seen in
-	http://upload.wikimedia.org/wikipedia/commons/2/24/Elipse.svg'''
+    '''Given the min/max start parameters sent by the server, calculates the
+    ellipse constants as seen in
+    http://upload.wikimedia.org/wikipedia/commons/2/24/Elipse.svg'''
 
-	def __init__(min, max):
-		self.a = (min + max) / 2.0
-		self.ecc = (max / self.a) - 1.0 # same as e
-		self.b = math.sqrt(self.ecc**2 - self.a**2)
-		self.e = self.ecc
+    def __init__(min, max):
+        self.a = (min + max) / 2.0
+        self.ecc = (max / self.a) - 1.0 # same as e
+        self.b = math.sqrt(self.ecc**2 - self.a**2)
+        self.e = self.ecc
 
-		self.min = min
-		self.max = max
+        self.min = min
+        self.max = max
 
 class Point(object):
-	def __init__(self, x, y):
-		self.x = float(x)
-		self.y = float(y)
+    def __init__(self, x, y):
+        self.x = float(x)
+        self.y = float(y)
 
-	def add(p):
-		return Point(self.x + p.x, self.y + p.y)
+    def add(p):
+        return Point(self.x + p.x, self.y + p.y)
 
-	def norm(self):
-		return math.sqrt(self.x**2 + self.y**2)
+    def norm(self):
+        return math.sqrt(self.x**2 + self.y**2)
+
+    def perturb(self, magnitude=0.1):
+        new_x = random.random() * magnitude + self.x
+        new_y = random.random() * magnitude + self.y
+        return Point(new_x, new_y)
 
 class Angle(object):
-	def __init__(self, radians):
-		self.radians = float(radians) / (2 * math.pi)
-		self.degrees = self.radians * 180 / math.pi
-	
-	def __add__(self, theta):
-		return Angle(self.radians + theta.radians)
+    def __init__(self, radians):
+        self.radians = radians
+        self.degrees = self.radians * 180 / math.pi
+    
+    def __add__(self, theta):
+        return Angle(self.radians + theta.radians)
 
-	def invert(self):
-		return Angle(-1 * self.radians)
+    def invert(self):
+        return Angle(-1 * self.radians)
+
+class TurnAngle(Angle):
+    def __init__(self, radians):
+        radians = normalize_turn_angle(radians)
+        super(TurnAngle, self).__init__(radians)
 
 class Vector(object):
-	def __init__(self, pos, speed, angle):
-		self.pos = pos
-		self.speed = float(speed)
-		self.angle = angle
+    def __init__(self, pos, speed, angle):
+        self.pos = pos
+        self.speed = float(speed)
+        self.angle = angle
 
-		self.vx = self.speed * math.cos(self.angle.radians)
-		self.vy = self.speed * math.cos(self.angle.radians)
+        self.vx = self.speed * math.cos(self.angle.radians)
+        self.vy = self.speed * math.cos(self.angle.radians)
 
-	def future_position(self, t):
-		vec = Point(self.vx * t, self.vy * t)
-		return self.pos.add(vec)
+    def future_position(self, t):
+        vec = Point(self.vx * t, self.vy * t)
+        return self.pos.add(vec)
 
 # terminal velocity = sqrt ( a / k)
 #
@@ -59,71 +80,48 @@ class Vector(object):
 # intitial message. This will calculate the acceleration coefficient a and the
 # drag coefficient k
 def calculate_coefficients(dt, v, tv):
-	a = float(v) / (dt**2) # need to go back and redo this right with calculus
-	k = a / (tv**2)
-	return a, k
+    a = float(v) / (dt**2) # need to go back and redo this right with calculus
+    k = a / (tv**2)
+    return a, k
 
 # FIXME: this is for figuring out martian triangles
 def predicted_path(vec, omega, dt):
-	'''omega is the guess of the maximum angular velocity of the object over
-	the time interval, vec should be a Vector, dt is the time interval that
-	we're interested in measuring over.'''
+    '''omega is the guess of the maximum angular velocity of the object over
+    the time interval, vec should be a Vector, dt is the time interval that
+    we're interested in measuring over.'''
 
-	straight_point = vec.future_position(dt)
+    straight_point = vec.future_position(dt)
 
-	# FIXME: this approximation only works if dt is small, but it can be
-	# exactly computed if i spend a little bit more work to figure out the
-	# right equation... This is an overestimate.
+    # FIXME: this approximation only works if dt is small, but it can be
+    # exactly computed if i spend a little bit more work to figure out the
+    # right equation... This is an overestimate.
 
-	# omega should be radians / second
-	angle = Angle(abs(omega) * dt)
-	right_angle = vec.angle + angle
-	left_angle = vec.angle + angle.invert()
+    # omega should be radians / second
+    angle = Angle(abs(omega) * dt)
+    right_angle = vec.angle + angle
+    left_angle = vec.angle + angle.invert()
 
-	leg_distance = math.sin(angle.radians) * vec.speed * dt
+    leg_distance = math.sin(angle.radians) * vec.speed * dt
 
-def steer_to_point(rover_vec, omega, dest):
-	'''rover_vec is a vector representing the rover.
-	turning params describes how well the rover can turn
-	dest is the point we're trying to navigate to.'''
+def angle_points_right(angle):
+    half_pi = 0.5 * math.pi
+    if -half_pi <= angle.radians <= half_pi:
+        return True
+    if angle.radians >= (math.pi + half_pi):
+        return True
+    return False
 
-	# set the origin at the rover
-	y_prime = dest.y - rover_vec.pos.y
-	x_prime = dest.x - rover_vec.pos.x
+def angle_points_left(angle):
+    return not angle_points_right(angle)
 
-	dest_prime = Point(x_prime, y_prime)
+def prime_point(rover_vec, dest):
+    y_prime = dest.y - rover_vec.pos.y
+    x_prime = dest.x - rover_vec.pos.x
+    return x_prime, y_prime, Point(x_prime, y_prime)
 
-	# now calculate the new angle
-	# FIXME: maybe need to adjust this by 180 degrees
-	turning_angle = math.atan(y_prime / x_prime)
-	print 'turning angle init %s' % turning_angle
-	print 'y, x = %s %s' % (y_prime, x_prime)
-	ny, nx = math.sin(turning_angle), math.cos(turning_angle)
-	if (ny * y_prime < 0):
-		turning_angle += math.pi
-		ny, nx = math.sin(turning_angle), math.cos(turning_angle)
-	print 'ny, nx = %s %s' % (ny, nx)
-	#if (y_prime > 0) and (x_prime < 0): turning_angle -= math.pi
-	#turning_angle = math.atan(y_prime / x_prime) - turning_angle
-
-
-	if (ny > 0) and (nx < 0):
-		turning_angle -= math.pi
-
-	if turning_angle >= math.pi:
-		turning_angle -= (2 * math.pi)
-	
-	print 'ANGLE TO DEST IS %s' % turning_angle
-	print 'MY ANGLE IS %s' % rover_vec.angle.radians
-
-	#turning_angle = rover_vec.angle.radians - turning_angle
-	turning_angle -= rover_vec.angle.radians
-	print 'ANGLE TURNING BY %s' % turning_angle
-
-	print 'Need to turn by %s radians' % turning_angle
-
-	t = abs(turning_angle / omega)
-	return Angle(turning_angle), t
+def edge_case(x, y):
+    eps = 0.001
+    return abs(x) <= eps or abs(y) <= eps
 
 
 def direction(p1, p2):
@@ -205,6 +203,48 @@ def find_headings(source, objects, samples=100):
     directions = (2.0 * math.PI * (float(i)/samples) for i in range(samples))
     return max(occlusion_score(d) + origin_score(d) for d in directions)
 
-            
+def steer_to_point(rover_vec, omega, dest):
+    '''rover_vec is a vector representing the rover.
+    turning params describes how well the rover can turn
+    dest is the point we're trying to navigate to.'''
 
+    rover_pos_copy = rover_vec.pos
+    x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
 
+    if edge_case(x_prime, y_prime):
+        # move the point forward
+        delta_t = 0.1 # FIXME: too small/large?
+        new_x = rover_vec.pos.x + rover_vec.vx * delta_t
+        new_y = rover_vec.pos.y + rover_vec.vy * delta_t
+
+        rover_vec.pos = Point(new_x, new_y)
+        x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
+        while edge_case(x_prime, y_prime):
+            rover_vec.pos = rover_pos_copy.perturb()
+            new_x = rover_vec.pos.x + rover_vec.vx * delta_t
+            new_y = rover_vec.pos.y + rover_vec.vy * delta_t
+            rover_vec.pos = Point(new_x, new_y)
+            x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
+
+    turning_angle = math.atan(y_prime / x_prime)
+    ny, nx = math.sin(turning_angle), math.cos(turning_angle)
+    if (ny * y_prime < 0):
+        turning_angle += math.pi
+        ny, nx = math.sin(turning_angle), math.cos(turning_angle)
+    #print '(nx, ny), angle = %s, %s' % ((nx, ny), turning_angle)
+
+    if (x_prime * nx < 0) or (y_prime * ny < 0):
+        print 'atan got fucked up: x, y = %s, nx, ny = %s' % ((x_prime, y_prime), (nx, ny))
+        turning_angle = normalize_turn_angle(turning_angle + math.pi)
+
+    # Adjust the turn angle to take into account the rover vector
+    ang_to_dest = turning_angle
+    turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)
+    #print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
+    t = abs(turning_angle / omega)
+
+    rover_vec.pos = rover_pos_copy
+
+    return TurnAngle(turning_angle), t
+
+# vim: et ts=4 sw=4

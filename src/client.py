@@ -105,6 +105,10 @@ class RoverController(object):
         pi_half = math.pi / 2
         pi_three = 3 * math.pi / 2
 
+        if abs(turn_angle.radians) < 0.10:
+            print 'skipping'
+            return
+
         if turn_angle.radians < 0:
             print 'scheduling right turn'
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))

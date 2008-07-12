@@ -151,20 +151,16 @@ def steer_to_point(rover_vec, omega, dest):
     if (ny * y_prime < 0):
         turning_angle += math.pi
         ny, nx = math.sin(turning_angle), math.cos(turning_angle)
-    print '(nx, ny), angle = %s, %s' % ((nx, ny), turning_angle)
+    #print '(nx, ny), angle = %s, %s' % ((nx, ny), turning_angle)
 
     if (x_prime * nx < 0) or (y_prime * ny < 0):
         print 'atan got fucked up: x, y = %s, nx, ny = %s' % ((x_prime, y_prime), (nx, ny))
         turning_angle = normalize_turn_angle(turning_angle + math.pi)
 
-    
-    # Right now the turning angle represents the angle from the rover to the
-    # origin
-    print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.4f' % (to_degrees(turning_angle), to_degrees(rover_vec.angle.radians))
-
     # Adjust the turn angle to take into account the rover vector
+    ang_to_dest = turning_angle
     turning_angle -= rover_vec.angle.radians
-    print 'DECIDED TO TURN BY %1.4f' % (to_degrees(turning_angle))
+    print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
     t = abs(turning_angle / omega)
 
     rover_vec.pos = rover_pos_copy

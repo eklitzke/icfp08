@@ -1,1 +1,3 @@
-#!/usr/bin/env python
+#!/bin/sh
+# Must be run from the icfp08 directory (as per the task specification)
+python ./src/client.py $1 $2

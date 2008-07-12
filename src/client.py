@@ -57,8 +57,11 @@ class Client(object):
 
 		elif mess['type'] == 'something else':
 			pass
-
-		# do something
+		
+		self.send_message('a;')
+	
+	def send_message(self, msg):
+		self.sock.send(msg)
 
 	def schedule_event(self, callback, args, delta_t):
 		future_time = time.time() + delta_t

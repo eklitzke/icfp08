@@ -35,6 +35,11 @@ class Point(object):
     def norm(self):
         return math.sqrt(self.x**2 + self.y**2)
 
+    def perturb(self, magnitude=0.1):
+        new_x = random.random() * magnitude + self.x
+        new_y = random.random() * magnitude + self.y
+        return Point(new_x, new_y)
+
 class Angle(object):
     def __init__(self, radians):
         self.radians = radians
@@ -105,54 +110,40 @@ def angle_points_right(angle):
 def angle_points_left(angle):
     return not angle_points_right(angle)
 
+def prime_point(rover_vec, dest):
+    y_prime = dest.y - rover_vec.pos.y
+    x_prime = dest.x - rover_vec.pos.x
+    return x_prime, y_prime, Point(x_prime, y_prime)
+
+def edge_case(x, y):
+    eps = 0.001
+    return abs(x) <= eps or abs(y) <= eps
+
 def steer_to_point(rover_vec, omega, dest):
     '''rover_vec is a vector representing the rover.
     turning params describes how well the rover can turn
     dest is the point we're trying to navigate to.'''
 
-    # set the origin at the rover
-    y_prime = dest.y - rover_vec.pos.y
-    x_prime = dest.x - rover_vec.pos.x
+    x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
 
-    dest_prime = Point(x_prime, y_prime)
+    rover_pos_copy = rover_vec.pos
 
-    if abs(x_prime) <= 0.01:
-        # need to navigate straight up or down
-        if y_prime < 0:
-            if angle_points_right(rover_vec.angle):
-                # do a right turn
-                turning_angle = rover_vec.angle.radians + (math.pi * 0.5)
-                t = turning_angle / omega
-                return TurnAngle(turning_angle), t
-            else:
-                # do a left turn
-                turning_angle = (1.5 * math.pi) - rover_vec.angle.radians
-                t = turning_angle / omega
-                return TurnAngle(turning_angle), t
-        else:
-            if angle_points_right(rover_vec.angle):
-                # do a left turn
-                turning_angle = (math.pi * 0.5) - rover_vec.angle.radians
-                t = turning_angle / omega
-                return TurnAngle(turning_angle), t
-            else:
-                # do a righ turn
-                turning_angle = rover_vec.angle.radians - (math.pi * 0.5)
-                t = turning_angle / omega
-                return TurnAngle(turning_angle), t
-    elif abs(y_prime) <= 0.001:
-        if x_prime < 0:
-            # need to turn west
-            turning_angle = math.pi - rover_vec.angle.radians
-            t = turning_angle / omega
-            return TurnAngle(turning_angle), t
-        else:
-            # need to turn east
-            turning_angle = -rover_vec.angle.radians
-            t = turning_angle / omega
-            return TurnAngle(turning_angle), t
-    else:
-        turning_angle = math.atan(y_prime / x_prime)
+    if edge_case(x_prime, y_prime):
+        # move the point forward
+        delta_t = 0.1 # FIXME: too small/large?
+        new_x = rover_vec.pos.x + rover_vec.vx * delta_t
+        new_y = rover_vec.pos.y + rover_vec.vy * delta_t
+
+        rover_vec.pos = Position(new_x, new_y)
+        x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
+        while edge_case(x_prime, y_prime):
+            rover_vec.pos = rover_pos_copy.perturb()
+            new_x = rover_vec.pos.x + rover_vec.vx * delta_t
+            new_y = rover_vec.pos.y + rover_vec.vy * delta_t
+            rover_vec.pos = Position(new_x, new_y)
+            x_prime, y_prime, dest_prime = prime_point(rover_vec, dest)
+
+    turning_angle = math.atan(y_prime / x_prime)
     print 'turning angle init %s' % turning_angle
     print 'y, x = %s %s' % (y_prime, x_prime)
 
@@ -179,6 +170,9 @@ def steer_to_point(rover_vec, omega, dest):
     # Adjust the turn angle to take into account the rover vector
     turning_angle -= rover_vec.angle.radians
     t = abs(turning_angle / omega)
+
+    rover_vec.pos = rover_pos_copy
+
     return TurnAngle(turning_angle), t
 
 # vim: et ts=4 sw=4

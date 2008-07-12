@@ -159,8 +159,8 @@ def steer_to_point(rover_vec, omega, dest):
 
     # Adjust the turn angle to take into account the rover vector
     ang_to_dest = turning_angle
-    turning_angle -= rover_vec.angle.radians
-    print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
+    turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)
+    #print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
     t = abs(turning_angle / omega)
 
     rover_vec.pos = rover_pos_copy

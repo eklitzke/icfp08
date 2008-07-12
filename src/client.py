@@ -61,13 +61,11 @@ class RoverController(object):
         self.turning = telemetry['turning']
         self.position = mars_math.Point(*telemetry['position'])
         self.velocity = telemetry['velocity']
-        self.direction = telemetry['direction']
+        self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
 
-        print 'pos %s' % str( self.position)
+        self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
-        #self.vector = mars_math.Vector(mars_math.point(
-
-        print 'turning_angle = %s, t = %s' % mars_math.steer_to_point(self.position, 1, self.origin)
+        print 'turning_angle = %s, t = %s' % mars_math.steer_to_point(self.vector, 1, self.origin)
 
     def setInitial(self, initial):
         """This is called with initial data"""

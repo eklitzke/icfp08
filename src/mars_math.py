@@ -1,5 +1,8 @@
 import math
 
+def to_radians(deg):
+	return deg / 180.0 * math.pi
+
 class Ellipse(object):
 	'''Given the min/max start parameters sent by the server, calculates the
 	ellipse constants as seen in
@@ -95,5 +98,5 @@ def steer_to_point(rover_vec, omega, dest):
 	turning_angle = math.atan(y_prime / x_prime)
 	turning_angle = Angle(rover_vec.angle.radians - turning_angle)
 
-	t = turning_angle / omega
-	return turning_angle, t
+	t = turning_angle.radians / omega
+	return turning_angle.radians, t

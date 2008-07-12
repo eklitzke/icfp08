@@ -43,6 +43,8 @@ class Client(object):
 
 		if got_message:
 			data = self.sock.recv(RECV_SIZE)
+			if not data:
+				self.finish() # server has closed its connection
 			messages = [msg.strip() for msg in data.split(';') if msg.strip()]
 			for msg in messages:
 				self.handle_message(msg)
@@ -57,6 +59,11 @@ class Client(object):
 		# loop in the scheduler
 		while True:
 			self.scheduler_wait()
+	
+	def finish(self):
+		'''Runs when the server shuts down'''
+		self.log('Finishing...')
+		sys.exit(0)
 
 if __name__ == '__main__':
 	icfp_client = Client(sys.argv[1], int(sys.argv[2]))

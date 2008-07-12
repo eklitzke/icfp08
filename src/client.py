@@ -49,6 +49,7 @@ class RoverController(object):
         self.controls = ''
         self.initialized = False
         self.acceleration = ROLL
+        self.origin = mars_math.Point(0.0, 0.0)
 
     def setTelemetry(self, telemetry):
         """This is called when telemetry is updated"""
@@ -58,9 +59,15 @@ class RoverController(object):
             self.telemetry_log.info('new acceleration: %r', self.acceleration)
 
         self.turning = telemetry['turning']
-        self.position = telemetry['position']
+        self.position = mars_math.Point(*telemetry['position'])
         self.velocity = telemetry['velocity']
         self.direction = telemetry['direction']
+
+        print 'pos %s' % str( self.position)
+
+        #self.vector = mars_math.Vector(mars_math.point(
+
+        print 'turning_angle = %s, t = %s' % mars_math.steer_to_point(self.position, 1, self.origin)
 
     def setInitial(self, initial):
         """This is called with initial data"""
@@ -84,91 +91,91 @@ class RoverController(object):
         reactor.callLater(3.0, stop)
 
 class Client(object):
-	def __init__(self, host, port):
-		self.host = host
-		self.port = port
-		self.event_queue = event.EventQueue()
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+        self.event_queue = event.EventQueue()
 
-		self.mtime = 0 # martian time, in milliseconds
-		self.vector = None
+        self.mtime = 0 # martian time, in milliseconds
+        self.vector = None
 
-	def log(self, s):
-		print s
+    def log(self, s):
+        print s
 
-	def connect(self):
-		'''Creates self.sock and initializes it'''
-		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.sock.connect((self.host, self.port))
-		self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    def connect(self):
+        '''Creates self.sock and initializes it'''
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.host, self.port))
+        self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
-	def handle_message(self, msg):
-		'''Handles a message from the "server"'''
-		mess = parse_message(msg)
-		self.log('handle_message: %s' % mess)
+    def handle_message(self, msg):
+        '''Handles a message from the "server"'''
+        mess = parse_message(msg)
+        self.log('handle_message: %s' % mess)
 
-		if mess['type'] == 'initial':
-			self.vector = None # this is the only time the vector can be None
-			self.time_limit = mess['time_limit']
-			self.min_sens = mess['min_sens']
-			self.max_sens = mess['max_sens']
-			self.max_speed = mess['max_speed']
-			self.max_turn = mess['max_turn']
-			self.max_hard_turn = mess['max_hard_turn']
+        if mess['type'] == 'initial':
+            self.vector = None # this is the only time the vector can be None
+            self.time_limit = mess['time_limit']
+            self.min_sens = mess['min_sens']
+            self.max_sens = mess['max_sens']
+            self.max_speed = mess['max_speed']
+            self.max_turn = mess['max_turn']
+            self.max_hard_turn = mess['max_hard_turn']
 
-			# this is a special case -- everything else should fall through and
-			# take an action based on the current state. for the initial
-			# message we wait until we get telemetry data (which happens
-			# IMMEDIATELY, i.e. at mtime = 0)
-			return
+            # this is a special case -- everything else should fall through and
+            # take an action based on the current state. for the initial
+            # message we wait until we get telemetry data (which happens
+            # IMMEDIATELY, i.e. at mtime = 0)
+            return
 
-		elif mess['type'] == 'telemetry':
-			self.mtime = mess['time_stamp']
+        elif mess['type'] == 'telemetry':
+            self.mtime = mess['time_stamp']
 
-			pos = mars_math.Point(mess['x_pos'], mess['y_pos'])
-			ang = mars_math.Angle(mess['direction']['radians'])
-			self.vector = mars_math.Vector(pos, mess['speed'], ang)
+            pos = mars_math.Point(mess['x_pos'], mess['y_pos'])
+            ang = mars_math.Angle(mess['direction']['radians'])
+            self.vector = mars_math.Vector(pos, mess['speed'], ang)
 
-		elif mess['type'] == 'something else':
-			pass
+        elif mess['type'] == 'something else':
+            pass
 
-		# accelerate!
-		self.send_message('a;')
+        # accelerate!
+        self.send_message('a;')
 
-	def send_message(self, msg):
-		self.sock.send(msg)
+    def send_message(self, msg):
+        self.sock.send(msg)
 
-	def schedule_event(self, callback, args, delta_t):
-		future_time = time.time() + delta_t
-		self.event_queue.insert(event.Event(callback, args, future_time))
+    def schedule_event(self, callback, args, delta_t):
+        future_time = time.time() + delta_t
+        self.event_queue.insert(event.Event(callback, args, future_time))
 
-	def scheduler_wait(self):
-		self.log('scheduler_wait')
-		delta_t = self.event_queue.next_time()
-		got_message, _, _ = select.select([self.sock], [], [], delta_t)
+    def scheduler_wait(self):
+        self.log('scheduler_wait')
+        delta_t = self.event_queue.next_time()
+        got_message, _, _ = select.select([self.sock], [], [], delta_t)
 
-		if got_message:
-			data = self.sock.recv(RECV_SIZE)
-			if not data:
-				self.finish() # server has closed its connection
-			messages = [msg.strip() for msg in data.split(';') if msg.strip()]
-			for msg in messages:
-				self.handle_message(msg)
-		else:
-			event = self.event_queue.pop()
-			event.execute()
+        if got_message:
+            data = self.sock.recv(RECV_SIZE)
+            if not data:
+                self.finish() # server has closed its connection
+            messages = [msg.strip() for msg in data.split(';') if msg.strip()]
+            for msg in messages:
+                self.handle_message(msg)
+        else:
+            event = self.event_queue.pop()
+            event.execute()
 
-	def run(self):
-		'''Runs the client'''
-		self.connect()
+    def run(self):
+        '''Runs the client'''
+        self.connect()
 
-		# loop in the scheduler
-		while True:
-			self.scheduler_wait()
+        # loop in the scheduler
+        while True:
+            self.scheduler_wait()
 
-	def finish(self):
-		'''Runs when the server shuts down'''
-		self.log('Finishing...')
-		sys.exit(0)
+    def finish(self):
+        '''Runs when the server shuts down'''
+        self.log('Finishing...')
+        sys.exit(0)
 
 class TwistedClient(Protocol): 
     log = logging.getLogger('TwistedClient')
@@ -255,4 +262,4 @@ if __name__ == '__main__':
         reactor.connectTCP(host, port, clientFactory)
         reactor.run()
 
-
+# vim: et st=4 sw=4

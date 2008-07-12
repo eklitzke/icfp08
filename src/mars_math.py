@@ -78,3 +78,22 @@ def predicted_path(vec, omega, dt):
 	left_angle = vec.angle + angle.invert()
 
 	leg_distance = math.sin(angle.radians) * vec.speed * dt
+
+def steer_to_point(rover_vec, omega, dest):
+	'''rover_vec is a vector representing the rover.
+	turning params describes how well the rover can turn
+	dest is the point we're trying to navigate to.'''
+
+	# set the origin at the rover
+	y_prime = dest.y - rover_vec.pos.y
+	x_prime = dest.x - rover_vec.pos.x
+
+	dest_prime = Point(x_prime, y_prime)
+
+	# now calculate the new angle
+	# FIXME: maybe need to adjust this by 180 degrees
+	turning_angle = math.atan(y_prime / x_prime)
+	turning_angle = Angle(rover_vec.angle.radians - turning_angle)
+
+	t = turning_angle / omega
+	return turning_angle, t

@@ -16,6 +16,31 @@ import utils
 
 RECV_SIZE = 4096 # should be way more than enough
 
+def similar(a, b, precision=0.95): 
+    d = abs(a - b)
+    return d <= ((1.0 - precision) * abs(a))
+
+def similar_position((x1, y1), (x2, y2)):
+    return similar(x1, x2) and similar(y1, y2)
+
+class Map(object): 
+    log = logging.getLogger('Map') 
+
+    def __init__(self): 
+        self.size = -1, -1
+        self.objects = []
+
+    def notice(self, object):
+        if object['kind'] == MARTIAN:
+            return
+        for o in self.objects:
+            if o['kind'] == object['kind'] \
+                    and similar_position(object['position'], o['position']):
+                break
+        else:
+            self.log.debug('found new object: %r', object)
+            self.objects.append(object)
+
 class RoverController(object):
     """responsible for sending and receiving messages from the client
     
@@ -49,6 +74,7 @@ class RoverController(object):
         self.controls = ''
         self.initialized = False
         self.acceleration = ROLL
+        self.map = Map() 
 
     def setTelemetry(self, telemetry):
         """This is called when telemetry is updated"""
@@ -61,11 +87,13 @@ class RoverController(object):
         self.position = telemetry['position']
         self.velocity = telemetry['velocity']
         self.direction = telemetry['direction']
+        for object in telemetry['objects']:
+            self.map.notice(object)
 
     def setInitial(self, initial):
         """This is called with initial data"""
         self.log.debug('received initial data: %r', initial)
-        self.map_size = initial['dx'], initial['dy']
+        self.map.size = initial['dx'], initial['dy']
         self.time_limit = initial['time_limit']
         self.min_sensor = initial['min_sensor']
         self.max_sensor = initial['max_sensor']

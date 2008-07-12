@@ -15,6 +15,11 @@ class Ellipse(object):
 		self.max = max
 
 # terminal velocity = sqrt ( a / k)
+#
+# dt should be the time for the first telemetry update, v should be the
+# velocity at that time, and tv should be the terminal velocity sent in the
+# intitial message. This will calculate the acceleration coefficient a and the
+# drag coefficient k
 def calculate_coefficients(dt, v, tv):
 	a = float(v) / (dt**2) # need to go back and redo this right with calculus
 	k = a / (tv**2)

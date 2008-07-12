@@ -10,6 +10,9 @@ import mars_math
 
 RECV_SIZE = 4096 # should be way more than enough
 
+from twisted.internet import reactor
+from twisted.internet.protocol import Protocol, ClientFactory
+
 class Client(object):
 	def __init__(self, host, port):
 		self.host = host
@@ -97,6 +100,37 @@ class Client(object):
 		self.log('Finishing...')
 		sys.exit(0)
 
+class TwistedClient(Protocol): 
+    def connectionMade(self): 
+        print "connection made"
+
+class TwistedClientFactory(ClientFactory):
+    protocol = TwistedClient
+
+    def clientConnectionFailed(self, connector, reason):
+        print "connection failed:", reason
+        reactor.stop()
+
+    def clientConnectionLost(self, reason):
+        print "connection lost", reason
+        reactor.stop() 
+
 if __name__ == '__main__':
-	icfp_client = Client(sys.argv[1], int(sys.argv[2]))
-	icfp_client.run()
+    if '-t' in sys.argv:
+        sys.argv.remove('-t') 
+        twisted = True
+    else:
+        twisted = False
+
+    host = sys.argv[1]
+    port = int(sys.argv[2])
+
+    if not twisted:
+        icfp_client = Client(sys.argv[1], int(sys.argv[2]))
+        icfp_client.run()
+    else:
+        clientFactory = TwistedClientFactory()
+        reactor.connectTCP(host, port, clientFactory)
+        reactor.run()
+
+

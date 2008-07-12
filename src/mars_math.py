@@ -124,3 +124,87 @@ def steer_to_point(rover_vec, omega, dest):
 
 	t = abs(turning_angle / omega)
 	return Angle(turning_angle), t
+
+
+def direction(p1, p2):
+    x1 = p1.x
+    y1 = p1.y
+    x2 = p2.x
+    y2 = p2.y
+    x = x2 - x1
+    y = y2 - y1
+    r = math.hypot(x, y)
+    return math.asin(y / r)
+
+def distance(p1, p2): 
+    return math.hypot(p1.x - p2.x, p1.y-p2.y)
+
+def to_extent(point, radius): 
+    """get the square extents around a radius"""
+    minx, miny = point.x - radius, point.y - radius  
+    maxx, maxy = point.x + radius, point.y + radius  
+    points = [Point(minx, miny),
+            Point(minx, maxy),
+            Point(maxx, miny),
+            Point(maxx, maxy)]
+    return points
+
+class RadianRange(object): 
+    def __init__(self, a, b): 
+        self.a = a
+        self.b = b
+
+    def between(self, x): 
+        """Test if x is between a and b"""
+        a = self.a
+        b = self.b
+        if a < b:
+            return a <= x <= b
+        else: 
+            return a <= x <= (2 * math.PI) or 0 <= x <= b
+
+    @classmethod
+    def make_smallest_range(self, rads):
+        m1 = min(rads)
+        m2 = max(rads)
+        if (m2 - m1) <= math.PI:
+            return RadianRange(m1, m2) 
+        else:
+            return RadianRange(m2, m1)
+
+def find_headings(source, objects, samples=100):
+    # Say there are n different possible headings we can take 0 ... i .. 2 PI
+    scores = [0] * samples
+    origin = Point(0, 0)
+    origin_dir = direction(point, origin)
+    origin_distance = distance(source, origin)
+
+    object_ranges = []
+    for point, radius in objects:
+        extent_points = to_extent(point, radius)
+        distance = min(distance(source, p) for p in extent_points)
+        if distance > origin_distance:
+                continue
+        extent_dirs = [direction(source, p) for p in extent_points]
+        object_ranges.append(RadianRange.make_smallest_range(extent_dirs))
+
+    def origin_score(direction):
+        """return a score between 0 and 1 for how close the direction is toward the origin"""
+        diff = abs(direction - origin_dir)
+        return 1.0 - (diff / abs(direction))
+
+    def occlusion_score(direction):
+        """return a score between 0 and 1 for how occluded that direction is"""
+        score = 1.0
+        for dist, dir_range in object_ranges:
+            if dir_range.contains(direction):
+                score = 0.0
+                break
+        return score
+
+    directions = (2.0 * math.PI * (float(i)/samples) for i in range(samples))
+    return max(occlusion_score(d) + origin_score(d) for d in directions)
+
+            
+
+

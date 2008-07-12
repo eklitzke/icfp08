@@ -10,16 +10,28 @@ from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 
 # local imports
 import event
-import message
+from message import * 
 import mars_math
 import utils
 
 RECV_SIZE = 4096 # should be way more than enough
 
 class RoverController(object):
-    """responsible for sending and receiving messages from the client"""
+    """responsible for sending and receiving messages from the client
+    
+    Instance variables:
+        client -- server client
+        map_size -- (int, int), width height of map
+        initialized -- bool, has this rover been initialized?
+        time_limit -- int, time limit in seconds
+        min_sensor -- float, minimum sensor range in meters 
+        max_sensor -- float, max sensor range in meters
+        
+    """
 
     log = logging.getLogger('RoverController') 
+    telemetry_log = logging.getLogger('RoverController.telemetry') 
+    telemetry_log.setLevel(logging.INFO)
 
     def __init__(self, client):
         self.client = client
@@ -36,10 +48,16 @@ class RoverController(object):
         self.direction = -1
         self.controls = ''
         self.initialized = False
+        self.acceleration = ROLL
 
     def setTelemetry(self, telemetry):
         """This is called when telemetry is updated"""
-        self.controls = telemetry['controls']
+        self.telemetry_log.debug('set: %r', telemetry) 
+        if self.acceleration != telemetry['acceleration']:
+            self.acceleration = telemetry['acceleration']
+            self.telemetry_log.info('new acceleration: %r', self.acceleration)
+
+        self.turning = telemetry['turning']
         self.position = telemetry['position']
         self.velocity = telemetry['velocity']
         self.direction = telemetry['direction']
@@ -55,11 +73,15 @@ class RoverController(object):
         self.max_turn = initial['max_turn']
         self.max_hard_turn = initial['max_hard_turn']
         self.initialized = True
-        self.start() 
+        reactor.callLater(1.0, self.start)
+        #self.start() 
 
     def start(self): 
         self.log.info('started')
-        pass
+        self.client.sendMessage(Message.create(ACCELERATE))
+        def stop():
+            self.client.sendMessage(Message.create(BRAKE)) 
+        reactor.callLater(3.0, stop)
 
 class Client(object):
 	def __init__(self, host, port):
@@ -81,7 +103,7 @@ class Client(object):
 
 	def handle_message(self, msg):
 		'''Handles a message from the "server"'''
-		mess = message.parse_message(msg)
+		mess = parse_message(msg)
 		self.log('handle_message: %s' % mess)
 
 		if mess['type'] == 'initial':
@@ -159,6 +181,7 @@ class TwistedClient(Protocol):
 
     def connectionMade(self): 
         self.log.info("connection made")
+        self.transport.setTcpNoDelay(True)
 
     def dataReceived(self, data):
         """This is called by twisted every time the client socket receives data
@@ -173,22 +196,25 @@ class TwistedClient(Protocol):
                 break
             msg_s = ''.join(self.buf[:idx + 1])
             del self.buf[:idx + 1]
-            msg = message.Message.parse(msg_s) 
+            msg = Message.parse(msg_s) 
             self.log.debug('msg: %r', msg)
             self.messageReceived(msg)
 
     def messageReceived(self, msg): 
         """This is called every time the client receives a message.
         Args:
-            msg -- dict, the parsed message dict, see message.Message
+            msg -- dict, the parsed message dict, see Message
         """
         if msg['type'] == 'telemetry':
             self.rover_ctl.setTelemetry(msg['telemetry'])
         elif msg['type'] == 'initial':
             self.rover_ctl.setInitial(msg['initial'])
         else:
-            self.log.info('unhandled %r', msg['type']) 
+            self.log.error('unhandled message:%r', msg['type']) 
 
+    def sendMessage(self, message): 
+        self.log.info('send: %r', message)
+        return self.transport.write(message)
 
 class TwistedClientFactory(ReconnectingClientFactory):
     protocol = TwistedClient
@@ -197,6 +223,7 @@ class TwistedClientFactory(ReconnectingClientFactory):
     def clientConnectionFailed(self, connector, reason):
         self.log.error('connection failed')
         reactor.stop()
+    
 
     def clientConnectionLost(self, connector, reason):
         self.log.error('connection lost')

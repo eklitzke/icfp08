@@ -70,9 +70,50 @@ def parse_message(data):
 		#TODO: parse the object string
 	return mess_dict
 
+# Acceleration states
+ROLL = '-'
+ACCELERATE = 'a'
+BRAKE = 'b'
+
+# Turn states
+LEFT = 'l'
+RIGHT = 'r'
+HARDRIGHT = 'R'
+HARDLEFT = 'L'
+STRAIGHT = '-'
+
 class Message(object): 
     @classmethod
+    def create(cls, accel=None, turn=None): 
+        """Create a message to send to the rover via the server.
+        Args:
+            accel -- None or str, or a accel state
+            turn -- None or str, one of turn states
+        """
+        msg = ""
+        if accel:
+            msg += accel
+            assert accel in [ACCELERATE, BRAKE]
+
+        if turn:
+            assert turn in [LEFT, RIGHT]
+            msg += turn
+        assert msg
+        msg += ";"
+        return msg
+
+    @classmethod
     def parse(cls, msg):
+        """Parse a message from the server.
+        Messages should end with a ';'.
+        Returns:
+            {
+            'type': message type,
+            'time_stamp': time stamp 
+            'telemetry': telemetry 
+            ...
+            }
+        """
         tokens = msg.split() 
         assert tokens[-1] == ';'
         tokens.pop()
@@ -121,9 +162,16 @@ class Message(object):
         return x
 
     @classmethod
+    def parse_controls(cls, tokens): 
+        accel, turn = tokens.pop(0)
+        assert accel in [ACCELERATE, BRAKE, ROLL]
+        assert turn in [LEFT, STRAIGHT, RIGHT, HARDLEFT, HARDRIGHT]
+        return accel, turn
+
+    @classmethod
     def parse_telemetry(cls, tokens): 
         tel = {} 
-        tel['controls'] = tokens.pop(0)
+        tel['acceleration'], tel['turning'] = cls.parse_controls(tokens)
         tel['position'] = cls.parse_float(tokens), cls.parse_float(tokens) 
         tel['direction'] = cls.parse_float(tokens) 
         tel['velocity'] = cls.parse_float(tokens) 

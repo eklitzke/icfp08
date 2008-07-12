@@ -87,6 +87,12 @@ HARDRIGHT = 'R'
 HARDLEFT = 'L'
 STRAIGHT = '-'
 
+CRATER = 'c'
+BOULDER = 'b'
+HOME = 'h'
+MARTIAN = 'm'
+
+
 class Message(object): 
     @classmethod
     def create(cls, accel=None, turn=None): 
@@ -190,14 +196,10 @@ class Message(object):
             object = {}
             objects.append(object) 
             kind = tokens.pop(0)
-            object['kind'] = {
-                    'm': 'martian',
-                    'b': 'boulder',
-                    'c': 'crater', 
-                    'h': 'home',
-                }[kind]
+            object['kind'] = kind
+            assert kind in [MARTIAN, CRATER, BOULDER, HOME]
             object['position'] = cls.parse_float(tokens), cls.parse_float(tokens) 
-            if object['kind'] == 'martian':
+            if object['kind'] == MARTIAN:
                 object['direction'] = cls.parse_float(tokens)
                 object['speed'] = cls.parse_float(tokens)
                 object['radius'] = None

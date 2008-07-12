@@ -120,8 +120,11 @@ class RoverController(object):
 
         if len(intervals) > self.MAX_INTERVALS:
             self.telemetry_intervals = intervals[:-1]
+        else:
+            self.telemetry_intervals = intervals
 
-        avg_interval *= 0.8
+        # fudge factor
+        avg_interval *= 0.9
 
         # We want to steer for the furthest point on the origin. The reason is
         # if we have a situation like this:
@@ -153,8 +156,6 @@ class RoverController(object):
 
         compensate_time = t - PROCESSING_TIME
 
-        print 'RAD %s, DEG %s' % (turn_angle.radians, turn_angle.degrees)
-
         # if the angle is small we should just keep moving forward
         if abs(turn_angle.degrees) < 5.0:
             if self.turning == 'L':
@@ -164,8 +165,9 @@ class RoverController(object):
             else:
                 self.client.sendMessage(Message.create(ACCELERATE))
 
+        sched_time = min(t, avg_interval)
         if turn_angle.radians < 0:
-            print 'scheduling right turn of %3.3f degrees' % (abs(turn_angle.degrees),)
+            print 'scheduling right turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),)
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
 
             if 0 < compensate_time < avg_interval:
@@ -173,7 +175,7 @@ class RoverController(object):
                     self.client.sendMessage(Message.create(ACCELERATE, LEFT))
                 reactor.callLater(compensate_time, turn_left)
         else:
-            print 'scheduling left turn of %3.3f degrees' % (abs(turn_angle.degrees),)
+            print 'scheduling left turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),)
             self.client.sendMessage(Message.create(ACCELERATE, LEFT))
  
             if 0 < compensate_time < avg_interval:

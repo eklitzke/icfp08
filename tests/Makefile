@@ -1,4 +1,4 @@
 .PHONY: test
 
 test:
-	PYTHONPATH=.:../src python test_message.py
+	PYTHONPATH=.:../src python test_*.py

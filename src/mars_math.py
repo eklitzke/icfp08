@@ -37,7 +37,6 @@ class Point(object):
 
 class Angle(object):
     def __init__(self, radians):
-        print 'in angle'
         self.radians = radians
         self.degrees = self.radians * 180 / math.pi
     
@@ -47,11 +46,9 @@ class Angle(object):
     def invert(self):
         return Angle(-1 * self.radians)
 
-def TurnAngle(Angle):
+class TurnAngle(Angle):
     def __init__(self, radians):
-        print 'in turn angle'
         radians = normalize_turn_angle(radians)
-        print 'calling %s' % super(TurnAngle, self).__init__
         super(TurnAngle, self).__init__(radians)
 
 class Vector(object):
@@ -158,6 +155,7 @@ def steer_to_point(rover_vec, omega, dest):
         turning_angle = math.atan(y_prime / x_prime)
     print 'turning angle init %s' % turning_angle
     print 'y, x = %s %s' % (y_prime, x_prime)
+
     ny, nx = math.sin(turning_angle), math.cos(turning_angle)
     if (ny * y_prime < 0):
         turning_angle += math.pi
@@ -181,7 +179,6 @@ def steer_to_point(rover_vec, omega, dest):
     # Adjust the turn angle to take into account the rover vector
     turning_angle -= rover_vec.angle.radians
     t = abs(turning_angle / omega)
-    print 'returing %s' % TurnAngle(turning_angle)
     return TurnAngle(turning_angle), t
 
 # vim: et ts=4 sw=4

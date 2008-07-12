@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import logging
 import select
 import socket
@@ -99,7 +101,6 @@ class RoverController(object):
         self.position = mars_math.Point(*telemetry['position'])
         self.velocity = telemetry['velocity']
         self.direction = telemetry['direction']
-        print 'turning = %s' % self.turning
         for object in telemetry['objects']:
             self.map.notice(object)
         self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
@@ -169,10 +170,11 @@ class RoverController(object):
                 self.client.sendMessage(Message.create(ACCELERATE, LEFT))
             else:
                 self.client.sendMessage(Message.create(ACCELERATE))
+            return
 
         sched_time = min(t, avg_interval)
         if turn_angle.radians < 0:
-            print 'scheduling right turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),)
+            self.log.debug('Scheduling right turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
 
             if 0 < compensate_time < avg_interval:
@@ -180,7 +182,7 @@ class RoverController(object):
                     self.client.sendMessage(Message.create(ACCELERATE, LEFT))
                 reactor.callLater(compensate_time, turn_left)
         else:
-            print 'scheduling left turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),)
+            self.log.debug('Scheduling left turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
             self.client.sendMessage(Message.create(ACCELERATE, LEFT))
  
             if 0 < compensate_time < avg_interval:
@@ -248,6 +250,11 @@ class TwistedClient(Protocol):
             self.rover_ctl.setTelemetry(msg['telemetry'])
         elif msg['type'] == 'initial':
             self.rover_ctl.setInitial(msg['initial'])
+        elif msg['type'] == 'success':
+            self.log.info('Successful!')
+        elif msg['type'] == 'end':
+            print msg
+            self.log.info('End of run (took %d martian seconds).' % msg['time_stamp'])
         else:
             self.log.error('unhandled message:%r', msg['type']) 
 
@@ -270,8 +277,13 @@ class TwistedClientFactory(ReconnectingClientFactory):
 
 if __name__ == '__main__':
 
-    host = sys.argv[1]
-    port = int(sys.argv[2])
+    if len(sys.argv) >= 3:
+        host = sys.argv[1]
+        port = int(sys.argv[2])
+    else:
+        # just use the default
+        host = 'localhost'
+        port = 17676
 
     # this creates clients when connections occur
     clientFactory = TwistedClientFactory()

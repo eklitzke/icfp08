@@ -18,7 +18,7 @@ class Client(object):
 
 		self.mtime = 0 # martian time, in milliseconds
 		self.vector = None
-	
+
 	def log(self, s):
 		print s
 
@@ -27,7 +27,7 @@ class Client(object):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock.connect((self.host, self.port))
 		self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-	
+
 	def handle_message(self, msg):
 		'''Handles a message from the "server"'''
 		mess = message.parse_message(msg)
@@ -57,9 +57,10 @@ class Client(object):
 
 		elif mess['type'] == 'something else':
 			pass
-		
+
+		# accelerate!
 		self.send_message('a;')
-	
+
 	def send_message(self, msg):
 		self.sock.send(msg)
 
@@ -90,7 +91,7 @@ class Client(object):
 		# loop in the scheduler
 		while True:
 			self.scheduler_wait()
-	
+
 	def finish(self):
 		'''Runs when the server shuts down'''
 		self.log('Finishing...')

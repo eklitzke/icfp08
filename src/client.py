@@ -1,6 +1,7 @@
 import sys
 import time
 import select
+import socket
 
 # local imports
 import event
@@ -15,27 +16,24 @@ class Client(object):
 
 	def connect(self):
 		'''Creates self.sock and initializes it'''
-		self.sock = socket.soket(socket.AF_INET, socket.SOCK_STREAM)
+		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock.connect((self.host, self.port))
 		self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
 	def schedule_event(self, callback, args, delta_t):
 		future_time = time.time() + delta_t
 		self.event_queue.insert(event.Event(callback, args, future_time))
-	
-	def scheduler_wait(self):
-		delta_t = self.event_queue.next_time() # probably want to cap this?
-		in, _, _ = select.select([self.sock], [], [], delta_t)
 
-		if not in:
-			# Timed out waiting for a message, execute the next event in the
-			# event queue...
-			event = self.event_queue.pop()
-			event.execute()
-		else:
-			# Got a telemetry or status update...
+	def scheduler_wait(self):
+		delta_t = self.event_queue.next_time()
+		got_message, _, _ = select.select([self.sock], [], [], delta_t)
+
+		if got_message:
 			data = self.sock.recv(RECV_SIZE)
 			self.handle_message(data)
+		else:
+			event = self.event_queue.pop()
+			event.execute()
 
 	def run(self):
 		'''Runs the client'''

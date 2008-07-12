@@ -65,7 +65,15 @@ class RoverController(object):
 
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
-        print 'turning_angle = %s, t = %s' % mars_math.steer_to_point(self.vector, 1, self.origin)
+        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, self.origin)
+        if 0 <= turn_angle.radians < math.pi:
+            self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
+            def turn_left():
+                self.client.sendMessage(Message.create(ACCELERATE, LEFT))
+            reactor.callLater(t, turn_left)
+            print 'need to turn right'
+        else:
+            print 'need to turn left'
 
     def setInitial(self, initial):
         """This is called with initial data"""
@@ -75,8 +83,8 @@ class RoverController(object):
         self.min_sensor = initial['min_sensor']
         self.max_sensor = initial['max_sensor']
         self.max_speed = initial['max_speed']
-        self.max_turn = initial['max_turn']
-        self.max_hard_turn = initial['max_hard_turn']
+        self.max_turn = mars_math.to_radians(initial['max_turn'])
+        self.max_hard_turn = mars_math.to_radians(initial['max_hard_turn'])
         self.initialized = True
         reactor.callLater(1.0, self.start)
         #self.start() 

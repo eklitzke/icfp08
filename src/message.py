@@ -35,5 +35,21 @@ def parse_message(data):
 		mess_dict['speed'] = float(speed)
 		mess_dict['objects'] = []
 
+		# parse the objects string
+		if object_str:
+			objects = object_str.split(' ')
+			while objects:
+				obj = {}
+				if objects[0] == 'm':
+					_, x_pos, y_pos, dir, speed = objects[:5]
+					obj['type'] = 'martian'
+					obj['x_pos'] = float(x_pos)
+					obj['y_pos'] = float(y_pos)
+					obj['dir'] = {'degrees': float(dir), 'radians': float(dir) * math.pi / 180.0}
+					obj['speed'] = float(speed)
+					objects = objects[5:]
+
+				mess_dict['objects'].append(obj)
+
 		#TODO: parse the object string
 	return mess_dict

@@ -319,6 +319,9 @@ def find_heading(source_vec, turn_state, objects, samples=64, max_dist=20.0):
 
     # Put 1/6 behind the rover (TODO)
     directions = front_samples + side_samples
+    directions = [d + source_vec.angle.radians for d in directions]
+
+    #assert all(-91 <= to_degrees(d) <= 91 for d in directions)
 
     force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= (constants.SMALL_ANGLE * constants.BLOAT))
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]

@@ -252,7 +252,7 @@ def get_origin_dir_and_distance(source_point):
     origin_distance = distance(source_point, origin)
     return origin_dir, origin_distance
 
-def find_heading(source_vec, turn_state, objects, samples=64, max_dist=20.0):
+def find_heading(source_vec, objects, samples=64, max_dist=20.0):
     """Find a direction (radians) that we should head to from source, given
     objects and samples
 
@@ -326,15 +326,16 @@ def find_heading(source_vec, turn_state, objects, samples=64, max_dist=20.0):
     force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= (constants.SMALL_ANGLE * constants.BLOAT))
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
     print >> sys.stderr, "CHOOSING ANGLE:", to_degrees(angle)
-    return steer_to_angle(source_vec, turn_state, angle) + (origin_distance, force_turn)
+
+    return TurnAngle(angle), force_turn
 
 def steer_to_angle(rover_vec, turn_state, turning_angle):
     turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)
-    soft_turn, hard_turn, turn = turn_state
-    is_hard = (turn in ('r', 'R') and is_right_turn(turning_angle)) or (turn in ('l', 'L') and is_left_turn(turning_angle))
-    omega = hard_turn if is_hard else soft_turn
-    t = abs(turning_angle / omega)
-    return TurnAngle(turning_angle), t
+    #soft_turn, hard_turn, turn = turn_state
+    #is_hard = (turn in ('r', 'R') and is_right_turn(turning_angle)) or (turn in ('l', 'L') and is_left_turn(turning_angle))
+    #omega = hard_turn if is_hard else soft_turn
+    #t = abs(turning_angle / omega)
+    return TurnAngle(turning_angle) #, t
 
 def steer_to_point(rover_vec, omega, dest):
     '''rover_vec is a vector representing the rover.

@@ -44,6 +44,11 @@ class Point(object):
         new_y = random.random() * magnitude + self.y
         return Point(new_x, new_y)
 
+    def __repr__(self):
+        return 'Point(%1.4f, %1.4f)' % (self.x, self.y)
+
+    __str__ = __repr__
+
 class Angle(object):
     def __init__(self, radians):
         self.radians = radians

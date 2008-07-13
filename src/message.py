@@ -211,5 +211,3 @@ class Message(object):
     def parse_float(cls, tokens): 
         atom = tokens.pop(0) 
         return float(atom) 
-
-

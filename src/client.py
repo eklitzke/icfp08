@@ -129,7 +129,7 @@ class RoverController(object):
             return BRAKE
 
     def steerRover(self):
-        turn_angle, t, origin_dist, force_turn = mars_math.find_heading(self.vector, self.max_turn, self.map.objects)
+        turn_angle, t, origin_dist, force_turn = mars_math.find_heading(self.vector, (self.max_turn, self.max_hard_turn, self.turning), self.map.objects)
         accel = self.determineAcceleration(turn_angle)
 
         # turning angle should be in the range -pi to pi

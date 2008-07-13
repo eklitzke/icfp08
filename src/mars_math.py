@@ -20,6 +20,12 @@ def normalize_turn_angle(rads):
         rads = 2 * math.pi + rads
     return rads
 
+def is_right_turn(angle):
+    return angle < 0
+
+def is_left_turn(angle):
+    return angle > 0
+
 class Ellipse(object):
     '''Given the min/max start parameters sent by the server, calculates the
     ellipse constants as seen in
@@ -243,9 +249,13 @@ def get_origin_dir_and_distance(source_point):
     origin_distance = distance(source_point, origin)
     return origin_dir, origin_distance
 
-def find_heading(source_vec, omega, objects, samples=64):
+def find_heading(source_vec, turn_state, objects, samples=64):
     """Find a direction (radians) that we should head to from source, given
-    objects and samples"""
+    objects and samples.
+    
+    Turn state should be a tuple holding the soft turn speed, hard turn speed,
+    and current turn state (in that order)."""
+
 
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
@@ -304,12 +314,13 @@ def find_heading(source_vec, omega, objects, samples=64):
 
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
 
-    return steer_to_angle(source_vec, omega, angle) + (origin_distance, force_turn)
+    return steer_to_angle(source_vec, turn_state, angle) + (origin_distance, force_turn)
 
-def steer_to_angle(rover_vec, omega, turning_angle):
-    ang_to_dest = turning_angle
+def steer_to_angle(rover_vec, turn_state, turning_angle):
     turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)
-    #print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
+    soft_turn, hard_turn, turn = turn_state
+    is_hard = (turn in ('r', 'R') and is_right_turn(turning_angle)) or (turn in ('l', 'L') and is_left_turn(turning_angle))
+    omega = hard_turn if is_hard else soft_turn
     t = abs(turning_angle / omega)
     return TurnAngle(turning_angle), t
 

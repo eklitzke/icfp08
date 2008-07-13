@@ -150,9 +150,12 @@ class RoverController(object):
                 self.client.sendMessage(Message.create(accel))
             return
 
-        sched_time = min(t, self.avg_interval)
+        if t >= self.avg_interval:
+            sched_time = 'until next telemetry updated'
+        else:
+            sched_time = 'for %1.3f seconds' % t
         if turn_angle.radians < 0:
-            self.log.debug('Scheduling right turn for %1.3f seconds (%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
+            self.log.debug('Scheduling right turn %s (targeting %3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
             self.client.sendMessage(Message.create(accel, RIGHT))
 
             if 0 < compensate_time < self.avg_interval:
@@ -160,7 +163,7 @@ class RoverController(object):
                     self.client.sendMessage(Message.create(accel, LEFT))
                 reactor.callLater(compensate_time, turn_left)
         else:
-            self.log.debug('Scheduling left turn for %1.3f seconds (%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
+            self.log.debug('Scheduling left turn %s (targeting %3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
             self.client.sendMessage(Message.create(accel, LEFT))
  
             if 0 < compensate_time < self.avg_interval:

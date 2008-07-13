@@ -5,6 +5,8 @@ r = math.sin(math.pi / 4) * 5
 BASE_POINTS = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0), (r, r), (r, -r), (-r, -r), (-r, r))
 del r
 
+BLOAT = 1.3 # make things 30 percent bigger
+
 
 def to_radians(deg):
     return deg / 180.0 * math.pi
@@ -160,8 +162,9 @@ def distance(p1, p2):
 
 def to_extent(point, radius): 
     """get the square extents around a radius"""
-    minx, miny = point.x - radius, point.y - radius  
-    maxx, maxy = point.x + radius, point.y + radius  
+    big_radius = radius * BLOAT # (bloat the object)
+    minx, miny = point.x - big_radius, point.y - big_radius  
+    maxx, maxy = point.x + big_radius, point.y + big_radius  
     return [Point(minx, miny),
             Point(minx, maxy),
             Point(maxx, miny),
@@ -182,9 +185,11 @@ class RadianRange(object):
             return a <= x <= (2 * math.pi) or 0 <= x <= b
 
     @classmethod
-    def make_smallest_range(self, rads):
+    def make_smallest_range(self, rads, bloat=False):
         m1 = min(rads)
         m2 = max(rads)
+        if bloat:
+            m1, m2 = BLOAT * m1, BLOAT * m2
         if (m2 - m1) <= math.pi:
             return RadianRange(m1, m2) 
         else:
@@ -272,7 +277,22 @@ def find_heading(source_vec, omega, objects, samples=64):
                 break
         return score
 
+    # We want the samples to be more densely packed in front of the rover than
+    # behind
+
+    THIRD_PI = math.pi / 3.0
+    # Put 1/3 of them in the range -30 degrees to + 30 degrees
+    front_samples = [THIRD_PI * float(i) - (math.pi / 6.0) for i in range(samples / 3)]
+
     directions = ((2.0 * math.pi * float(i) / samples) for i in range(samples))
+    # Put another 1/2 in the range (-90 to -30) and (30 to 90)
+    side_samples = [THIRD_PI * float(i) / samples + (math.pi / 6.0) for i in range (samples / 4)]
+    side_samples += [-x for x in side_samples]
+
+    # Put 1/6 behind the rover (TODO)
+
+    directions = front_samples + side_samples
+
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
 
     return steer_to_angle(source_vec, omega, angle)

@@ -29,9 +29,11 @@ def steer_rover(f):
 		omega = hard_turn if is_hard else soft_turn
 		t = abs(turn_angle.degrees / omega) # FIXME is htis right?
 
-		origin_distance = 100 # FIXME
+		origin_distance = mars_math.distance(rover.origin, rover.position)
 
-		accel = rover.determineAcceleration(turn_angle)
+		if force_turn:
+			rover.log.info('Fuck, please don\'t let me bump into anything')
+		accel = 'b' if force_turn else rover.determineAcceleration(turn_angle)
 
 		# turning angle should be in the range -pi to pi
 		assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians

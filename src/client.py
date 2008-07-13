@@ -18,10 +18,6 @@ from message import *
 import mars_math
 import utils
 
-r = math.sin(math.pi / 4) * 5
-BASE_POINTS = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0), (r, r), (r, -r), (-r, -r), (-r, r))
-del r
-
 # The docs say the processing time is less than 20 milliseconds
 PROCESSING_TIME = 0.015
 

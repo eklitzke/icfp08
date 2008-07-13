@@ -1,6 +1,11 @@
 import math
 import random
 
+r = math.sin(math.pi / 4) * 5
+BASE_POINTS = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0), (r, r), (r, -r), (-r, -r), (-r, r))
+del r
+
+
 def to_radians(deg):
     return deg / 180.0 * math.pi
 
@@ -130,14 +135,15 @@ def edge_case(x, y):
 
 
 def direction(p1, p2):
-    x1 = p1.x
-    y1 = p1.y
-    x2 = p2.x
-    y2 = p2.y
-    x = x2 - x1
-    y = y2 - y1
-    r = math.hypot(x, y)
-    return math.asin(y / r)
+    '''Return the direction from p1 to p2'''
+    x = p2.x - p1.x
+    y = p2.y - p1.y
+    theta = math.atan(y / x)
+
+    ny = math.sin(theta)
+    if (ny * y < 0):
+        theta = theta + math.pi
+    return theta
 
 def distance(p1, p2): 
     return math.hypot(p1.x - p2.x, p1.y-p2.y)
@@ -201,36 +207,47 @@ def find_home_point(pos):
     # be making a pretty hard right to make sure we don't shoot past the
     # target.
 
-    distance_sq = pos.x**2 + self.pos.y**2
+    # FIXME: it would be even better to take into account the direction of
+    # motion (although this is pretty good already)
+
+    distance_sq = pos.x**2 + pos.y**2
 
     # It's wasteful to optimize this when we're far away
     if distance_sq > 400:
-        return self.origin
+        return Point(0.0, 0.0)
 
     # Sample 8 points around the circle:
     normsq = lambda (x, y): (pos.x - x)**2 + (pos.y - y)**2
     distances = [(pt, normsq(pt)) for pt in BASE_POINTS]
     return Point(*max(distances, key=lambda x: x[1])[0])
 
-def find_heading(source_vec, omega, objects, samples=100):
-    """Find a direction (radians) that we should head to from source, given objects and samples"""
-    source = source_vec.pos
+def get_origin_dir_and_distance(source_point):
+    '''Auxilliary function used by find_heading, used to find the angle and
+    distance to the origin. This is factored out this way to make some of the
+    other functions more easily testable.'''
+    origin = find_home_point(source_point)
+    origin_dir = direction(source_point, origin)
+    origin_distance = distance(source_point, origin)
+    return origin_dir, origin_distance
+
+def find_heading(source_vec, omega, objects, samples=16):
+    """Find a direction (radians) that we should head to from source, given
+    objects and samples"""
+
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
     # destination, the origin
 
-    origin = find_home_point(source)
+    origin_dir, origin_distance = get_origin_dir_and_distance(source_vec.pos)
 
-    origin_dir = direction(source, origin)
-    origin_distance = distance(source, origin)
-
+    # this somehow prunes some of the objects out that aren't nearby
     object_ranges = []
     for point, radius in objects:
         extent_points = to_extent(point, radius)
-        extent_distance = min(distance(source, p) for p in extent_points)
+        extent_distance = min(distance(source_vec.pos, p) for p in extent_points)
         if extent_distance > origin_distance:
             continue
-        extent_dirs = [direction(source, p) for p in extent_points]
+        extent_dirs = [direction(source_vec.pos, p) for p in extent_points]
         object_ranges.append(RadianRange.make_smallest_range(extent_dirs))
 
     def origin_score(direction):
@@ -248,7 +265,6 @@ def find_heading(source_vec, omega, objects, samples=100):
 
     directions = ((2.0 * math.pi * float(i) / samples) for i in range(samples))
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
-    print 'ANGLE %s' % angle
 
     return steer_to_angle(source_vec, omega, angle)
 

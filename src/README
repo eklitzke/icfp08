@@ -1,118 +1,20 @@
-Terminology
------------
-As in the specification, the "controller" is our Python code, and the "server"
-is the rover.
+Our entry is written in Python; it is modeled as a simple event loop +
+scheduler.
 
-Strategy
---------
-The most important part of the program, of course, is trying to determine what
-messages the controller should send the server. This is implemented in the
-following manner.
+There are a couple of registered callbacks for dealing with data from the
+server. The controller can also register functions to be called in the future.
+For example, when figuring out how to turn, the client calculates its desired
+turn angle and then calculates the estimated time to turn that angle (based on
+whether the turn is a soft/hard turn). If the amount of time needed to turn is
+less than the predicted time for the next telemetry update then an event will
+be schedule to "unturn" in the future. The system is "tickless" in the sense
+that it only wakes up to call scheduled events and when it receives messages.
 
-For each known object on the map, we draw an elliptical donut or ring around
-the object showing where its position could end up in the next iteration (the
-inner radius of the donut can be zero). For objects that have zero initial
-velocity or don't move (i.e.  craters and boulders) this will end up as a
-circle (the inner radius will be zero). For objects that have an initial
-velocity, the ellipse will be distorted in the direction of the velocity of the
-object. If the object is going fast enough that it could not possible brake to
-a complete stop the inner radius will be non-zero.
+Steering is pretty simple. At each telemetry update the controller tries to
+pick the angle that steers the rover closest to the home base while avoiding
+nearby obstacles (craters, boulders, or martians). There is some special logic
+for steering the client when it is very close to the home base (40 meters or
+so) to improve the hit accuracy.
 
-The controller will try to place the rover into a position so that it will not
-collide with any other objects on the map (i.e. we will never purposely crash
-into a boulder or other object).
-
-This naive approach has two drawbacks:
-1) We could put the rover in a bad position (e.g. right next to a martian) so
-that on the following turn the rover may not be able to make a good move).
-2) This doesn't take into account the position of objects that the rover will
-encounter several turns out. For example, if from a previous run in a trial we
-know there is a boulder several turns away directly in the path to the base,
-the rover may continue to head straight towards it rather than veering off.
-
-To counter these drawbacks, after the ellipses of other objects' positions have
-been determined, the locus of possible target points for the rover will go
-through a series of filters to distort and add further restictions. For
-example, the ellipses around martians may be exaggerated towards the rover to
-indicate that over the next few turns the martian will probably be moving
-towards the rover. Likewise, if we know that a far-off boulder is on the path
-to the home base we may add a very small pretend rock directly in front of the
-rover, so that it will be forced to move a little bit to the side to avoid
-hitting the rock.
-
-For example, suppose that we have a map with just a rover, the home base, and a
-single boulder, like so:
-
-                    ---
-     R             | B |            H
-                    ---
-
-After the first pass, the map will look like
-
-   .----.
-  /       \         ---
- |   R     |       | B |            H
-  \       /         ---
-   '-----'
-
-Indicating that the rover can move anywhere in that circle. The martian,
-crater, etc. filters will do nothing since there are not martians or
-craters. But the boulder filter might add a pebble to the rover's path, like
-so:
-
-                        __.......__
-                   _.-''           '-..
-                ,-'                    '-.
-              ,'                          '.
-            ,'                              '\
-           /                                  `
-          /                                    `.
-         /                                      \
-        |                                        |
-        |                                        |
-        |                             .-.        |
-        |                   R         |P|        |
-        |                             .-.        .'
-        |                                        |
-         |                                      .'
-          \                                     /
-           \                                  ,'
-            `                                /
-             '.                            ,'
-               '-.                      _,'
-                  '-._              _,-'
-                      '`--......---'
-
-When the rover figures out possible future positions it will eliminate any area that will cause it to move though a restricted area, resulting in a figure like this:
-
-                        __.......__
-                   _.-''           '-..
-                ,-'                    '-.
-              ,'                          '.
-            ,'                              '\
-           /                                  ` 2
-          /                                  /
-         /                                 -
-        |                                /
-        |                              -
-        |                             /
-        |                   R        <
-        |                             \
-        |                               -
-         |                                \
-          \                                 -
-           \                                  \ 1
-            `                                /
-             '.                            ,'
-               '-.                      _,'
-                  '-._              _,-'
-                      '`--......---'
-
-Now the rover will pick a point closest to the origin, in this case either
-point 1 or 2. In this manner, the rover will pick a path that avoids out of the
-way of the boulder ahead of time and allows the rover to make the shortest
-possible path to the home base.
-
-Hopefully by splitting out the filters into distinct passes (i.e. for martians,
-boulders, etc.) we can play with optimizations to the logic for dealing with
-these different objects independently.
+The rover will almost always be accelerating except when making hard turns,
+when it may transition into a rolling or braking state.

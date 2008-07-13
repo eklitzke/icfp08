@@ -311,34 +311,18 @@ def find_heading(source_vec, turn_state, objects, samples=64, max_dist=20.0):
 
     THIRD_PI = math.pi / 3.0
     # Put 1/3 of them in the range -30 degrees to + 30 degrees
-    front_samples = [THIRD_PI * float(i) - (math.pi / 6.0) for i in range(samples / 3)]
+    front_samples = [THIRD_PI * (float(i) * 3 / samples) - (math.pi / 6.0) for i in range(samples / 3)]
 
-    directions = ((2.0 * math.pi * float(i) / samples) for i in range(samples))
     # Put another 1/2 in the range (-90 to -30) and (30 to 90)
-    side_samples = [THIRD_PI * float(i) / samples + (math.pi / 6.0) for i in range (samples / 4)]
+    side_samples = [THIRD_PI * float(i) * 4 / samples + (math.pi / 6.0) for i in range (samples / 4)]
     side_samples += [-x for x in side_samples]
 
     # Put 1/6 behind the rover (TODO)
-    #for d in front_samples:
-    #    assert 0 <= d <= (math.pi * 2.0)
-    #for d in side_samples:
-    #    assert 0 <= d <= (math.pi * 2.0)
     directions = front_samples + side_samples
-    directions = [d % (math.pi * 2.0) for d in directions]
-    for d in directions:
-        assert 0 <= d <= (math.pi * 2.0)
-    # FIXME
-    # If there are any objects that are in a small angle radius for the rover
-    # we need to do something smart here. Since the rover won't try to make a
-    # turn of constants.SMALL_ANGLE we need to force it to turn if there's an
-    # object that it's going to hit (say 5 degrees to the side of it).
-    #
-    # We should send a flag back or something...
 
-    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= constants.SMALL_ANGLE * constants.BLOAT)
+    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= (constants.SMALL_ANGLE * constants.BLOAT))
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
-    assert 0 <= angle <= (2 * math.pi) 
-    print >> sys.stderr, "CHOOSING ANGLE:", (angle * 57.77)
+    print >> sys.stderr, "CHOOSING ANGLE:", to_degrees(angle)
     return steer_to_angle(source_vec, turn_state, angle) + (origin_distance, force_turn)
 
 def steer_to_angle(rover_vec, turn_state, turning_angle):

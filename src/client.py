@@ -136,15 +136,13 @@ class RoverController(object):
         distance_sq = self.position.x**2 + self.position.y**2
 
         # It's wasteful to optimize this when we're far away
-        if distance_sq > 500:
+        if distance_sq > 400:
             return self.origin
 
         # Sample 8 points around the circle:
         normsq = lambda (x, y): (self.position.x - x)**2 + (self.position.y - y)**2
         distances = [(pt, normsq(pt)) for pt in BASE_POINTS]
-        closest = mars_math.Point(*max(distances, key=lambda x: x[1])[0])
-        self.log.debug('Navigating with home as %s (I\'m at %s)' % (closest, self.position))
-        return closest
+        return mars_math.Point(*max(distances, key=lambda x: x[1])[0])
 
     def setTelemetry(self, telemetry):
         """This is called when telemetry is updated"""
@@ -163,14 +161,13 @@ class RoverController(object):
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
         self.recordCommunicationsData()
-
-        origin_prime = self.findHomePoint()
-
-        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, origin_prime)
+        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, self.findHomePoint())
 
         # turning angle should be in the range -pi to pi
         assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians
 
+        # in this many milliseconds will send out another message reversing the
+        # turn angle (i.e. to straighten out our path)
         compensate_time = t - PROCESSING_TIME
 
         # if the angle is small we should just keep moving forward
@@ -185,17 +182,15 @@ class RoverController(object):
 
         sched_time = min(t, self.avg_interval)
         if turn_angle.radians < 0:
-            self.log.debug('Scheduling right turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
+            self.log.debug('Scheduling right turn for %1.3f seconds (%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
 
             if 0 < compensate_time < self.avg_interval:
-                print 'going to compensate'
                 def turn_left():
-                    print 'compensating left'
                     self.client.sendMessage(Message.create(ACCELERATE, LEFT))
                 reactor.callLater(compensate_time, turn_left)
         else:
-            self.log.debug('Scheduling left turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
+            self.log.debug('Scheduling left turn for %1.3f seconds (%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
             self.client.sendMessage(Message.create(ACCELERATE, LEFT))
  
             if 0 < compensate_time < self.avg_interval:
@@ -266,7 +261,6 @@ class TwistedClient(Protocol):
         elif msg['type'] == 'success':
             self.log.info('Successful!')
         elif msg['type'] == 'end':
-            print msg
             self.log.info('End of run (took %d martian seconds).' % msg['time_stamp'])
         else:
             self.log.error('unhandled message:%r', msg['type']) 

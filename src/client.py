@@ -145,9 +145,10 @@ class RoverController(object):
         return mars_math.Point(*max(distances, key=lambda x: x[1])[0])
 
     def steerToPoint(self, point=None):
-        if point is None:
-            point = self.findHomePoint()
-        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, point)
+        #if point is None:
+        #    point = self.findHomePoint()
+        #turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, point)
+        turn_angle, t = mars_math.find_heading(self.vector, self.max_turn, self.objects)
 
         # turning angle should be in the range -pi to pi
         assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians

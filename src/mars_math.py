@@ -186,8 +186,9 @@ def vector_sim(d1, d2):
     d = min_vector_difference(d1, d2) / math.pi
     return 1.0 - d
 
-def find_heading(source, objects, samples=100):
+def find_heading(source_vec, omega, objects, samples=100):
     """Find a direction (radians) that we should head to from source, given objects and samples"""
+    source = source_vec.pos
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
     # destination, the origin
@@ -218,14 +219,16 @@ def find_heading(source, objects, samples=100):
         return score
 
     directions = ((2.0 * math.pi * float(i) / samples) for i in range(samples))
-    return max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
+    angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
+    print 'ANGLE %s' % angle
+
+    return steer_to_angle(source_vec, omega, angle)
 
 def steer_to_angle(rover_vec, omega, turning_angle):
     ang_to_dest = turning_angle
     turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)
     #print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
     t = abs(turning_angle / omega)
-    rover_vec.pos = rover_pos_copy
     return TurnAngle(turning_angle), t
 
 def steer_to_point(rover_vec, omega, dest):
@@ -263,6 +266,8 @@ def steer_to_point(rover_vec, omega, dest):
         turning_angle = normalize_turn_angle(turning_angle + math.pi)
 
     # Adjust the turn angle to take into account the rover vector
-    return steer_to_angle(rover_vector, omega, turning_angle)
+    result = steer_to_angle(rover_vec, omega, turning_angle)
+    rover_vec.pos = rover_pos_copy
+    return result
 
 # vim: et ts=4 sw=4

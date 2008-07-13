@@ -302,18 +302,8 @@ def find_heading(source_vec, turn_state, objects, samples=64):
 
     directions = front_samples + side_samples
 
-    # FIXME
-    # If there are any objects that are in a small angle radius for the rover
-    # we need to do something smart here. Since the rover won't try to make a
-    # turn of constants.SMALL_ANGLE we need to force it to turn if there's an
-    # object that it's going to hit (say 5 degrees to the side of it).
-    #
-    # We should send a flag back or something...
-
-    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples)
-
+    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= constants.SMALL_ANGLE * 1.4)
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
-
     return steer_to_angle(source_vec, turn_state, angle) + (origin_distance, force_turn)
 
 def steer_to_angle(rover_vec, turn_state, turning_angle):

@@ -45,7 +45,7 @@ def steer_rover(f):
 		compensate_time = t
 
 		# if the angle is small we should just keep moving forward
-		if not force_turn and (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist > FORCE_TURN_DIST):
+		if not force_turn and (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_distance > FORCE_TURN_DIST):
 			if rover.turning == 'L' or (rover.turning == 'l' and turn_angle.degrees < 0):
 				rover.client.sendMessage(Message.create(accel, RIGHT))
 			elif rover.turning == 'R' or (rover.turning == 'r' and turn_angle.degrees < 0):
@@ -54,7 +54,7 @@ def steer_rover(f):
 				rover.client.sendMessage(Message.create(accel))
 			return
 
-		if (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist < FORCE_TURN_DIST):
+		if (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_distance < FORCE_TURN_DIST):
 			rover.log.info('Forcing turn due to home proximity')
 
 		if t >= rover.avg_interval:

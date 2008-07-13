@@ -324,10 +324,11 @@ def find_heading(source_vec, objects, samples=64, max_dist=20.0):
     force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= (constants.SMALL_ANGLE * constants.BLOAT))
     angle_score, angle = max(((occlusion_score(d) + origin_score(d), d) for d in directions), key=lambda x: x[0])
 
-    print >> sys.stderr, "CHOOSING ANGLE WAS:", to_degrees(angle)
     print >> sys.stderr, "CHOOSING ANGLE:", to_degrees(angle)
 
-    return TurnAngle(angle), force_turn
+    angle = TurnAngle(angle - source_vec.angle.radians)
+
+    return angle, force_turn
 
 def steer_to_angle(rover_vec, turn_state, turning_angle):
     turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)

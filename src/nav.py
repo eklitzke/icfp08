@@ -40,29 +40,36 @@ class MapGrid(object):
         self.height = float(height)
         self.grid_width = resolution
         self.grid_height = resolution
+        self.resolution = resolution
+        self.obstacles = set()  
 
     def node(self, x, y): 
         adj_x = x + (self.width / 2.0)
         adj_y = y + (self.height / 2.0)
         i = int(self.grid_width * adj_x / self.width)
         j = int(self.grid_height * adj_y / self.height)
-        return i, j
+        return (i*self.resolution) + j
 
     def cost(self, node1, node2): 
         return 1.0
     
     def distance(self, node1, node2):
-        return math.hypot(node1[0] - node2[0], node1[1] - node2[1])
+        i1 = node1 % self.resolution
+        j1 = node1 % self.resolution
+        i2 = node2 % self.resolution
+        j2 = node2 % self.resolution
+        return math.hypot(i1 - i2, j1 - j2)
 
     def coord(self, node): 
-        i, j = node
+        i = node % self.resolution
+        j = node / self.resolution
         x = self.width * i / float(self.grid_width) 
         x -= self.width / 2.0
         y = self.height * j / float(self.grid_height)
         y -= self.height / 2.0
         return x, y
 
-    def add_obstacle(self, node, goal):
+    def add_obstacle(self, x, y, radius):
         pass
 
     def path(self, start, goal):
@@ -72,28 +79,37 @@ class MapGrid(object):
         return map(m.coord, result)
 
     def adjacent(self, node): 
-        i, j = node
-        if i < self.grid_width: # RIGHT
-            yield i + 1, j
-        if j < self.grid_height: # UP
-            yield i, j + 1
-        if i < self.grid_width and j <= self.grid_height: # UP RIGHT
-            yield i + 1, j + 1 
-        if i < self.grid_width and j > 0: # DOWN RIGHT
-            yield i + 1, j - 1
+        for i in self._adjacent(node):
+            if i not in self.obstacles:
+                yield i
+    
+    def _adjacent(self, node): 
+        i = node % self.resolution
+        j = node / self.resolution
+        res = self.resolution
+        w = self.grid_width
+        h = self.grid_height
+        if i < w: # RIGHT
+            yield ((i + 1) * res) + j
+        if j < h: # UP
+            yield (i * res) + j + 1
+        if i < w and j <= h: # UP RIGHT
+            yield ((i + 1) * res) + j + 1 
+        if i < w and j > 0: # DOWN RIGHT
+            yield ((i + 1) * res) + j - 1
         if i > 0 and j > 0:  # DOWN LEFT
-            yield i + 1, j + 1
+            yield ((i + 1) * res) + j + 1
         if i > 0: # LEFT
-            yield i - 1, j
+            yield ((i - 1) * res) + j
         if j > 0: # DOWN
-            yield i, j - 1
-        if i > 0 and j <= self.grid_height: # UP LEFT
-            yield i - 1, j + 1
+            yield (i * res) + j - 1
+        if i > 0 and j <= h: # UP LEFT
+            yield ((i-1) * res) + j + 1
 
 if __name__ == '__main__':
-    m = MapGrid(100, 100, 100)
+    m = MapGrid(10, 10, 200)
     ts = time.time()
-    path = m.path((-50.0, -50.0), (0, 0))
+    path = m.path((-5, -5), (0, 0))
     te = time.time() 
     print path
     print te-ts

@@ -144,24 +144,10 @@ class RoverController(object):
         distances = [(pt, normsq(pt)) for pt in BASE_POINTS]
         return mars_math.Point(*max(distances, key=lambda x: x[1])[0])
 
-    def setTelemetry(self, telemetry):
-        """This is called when telemetry is updated"""
-        self.telemetry_log.debug('set: %r', telemetry) 
-        if self.acceleration != telemetry['acceleration']:
-            self.acceleration = telemetry['acceleration']
-            self.telemetry_log.info('new acceleration: %r', self.acceleration)
-
-        self.turning = telemetry['turning']
-        self.position = mars_math.Point(*telemetry['position'])
-        self.velocity = telemetry['velocity']
-        self.direction = telemetry['direction']
-        for object in telemetry['objects']:
-            self.map.notice(object)
-        self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
-        self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
-
-        self.recordCommunicationsData()
-        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, self.findHomePoint())
+    def steerToPoint(self, point=None):
+        if point is None:
+            point = self.findHomePoint()
+        turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, point)
 
         # turning angle should be in the range -pi to pi
         assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians
@@ -197,6 +183,25 @@ class RoverController(object):
                 def turn_right():
                     self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
                 reactor.callLater(compensate_time, turn_right)
+
+    def setTelemetry(self, telemetry):
+        """This is called when telemetry is updated"""
+        self.telemetry_log.debug('set: %r', telemetry) 
+        if self.acceleration != telemetry['acceleration']:
+            self.acceleration = telemetry['acceleration']
+            self.telemetry_log.info('new acceleration: %r', self.acceleration)
+
+        self.turning = telemetry['turning']
+        self.position = mars_math.Point(*telemetry['position'])
+        self.velocity = telemetry['velocity']
+        self.direction = telemetry['direction']
+        for object in telemetry['objects']:
+            self.map.notice(object)
+        self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
+        self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
+
+        self.recordCommunicationsData()
+        self.steerToPoint()
 
     def setInitial(self, initial):
         """This is called with initial data"""

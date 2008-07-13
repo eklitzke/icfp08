@@ -317,7 +317,7 @@ def find_heading(source_vec, objects, samples=64, max_dist=20.0):
 
     # Put 1/6 behind the rover (TODO)
     directions = front_samples + side_samples
-    #directions = [d + source_vec.angle.radians for d in directions]
+    directions = [d + source_vec.angle.radians for d in directions]
 
     #assert all(-91 <= to_degrees(d) <= 91 for d in directions)
 
@@ -325,7 +325,6 @@ def find_heading(source_vec, objects, samples=64, max_dist=20.0):
     angle_score, angle = max(((occlusion_score(d) + origin_score(d), d) for d in directions), key=lambda x: x[0])
 
     print >> sys.stderr, "CHOOSING ANGLE WAS:", to_degrees(angle)
-    angle += source_vec.angle.radians
     print >> sys.stderr, "CHOOSING ANGLE:", to_degrees(angle)
 
     return TurnAngle(angle), force_turn

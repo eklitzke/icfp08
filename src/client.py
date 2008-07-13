@@ -90,22 +90,9 @@ class RoverController(object):
         self.MAX_INTERVALS = 3
         self.telemetry_intervals = []
 
-    def setTelemetry(self, telemetry):
-        """This is called when telemetry is updated"""
-        self.telemetry_log.debug('set: %r', telemetry) 
-        if self.acceleration != telemetry['acceleration']:
-            self.acceleration = telemetry['acceleration']
-            self.telemetry_log.info('new acceleration: %r', self.acceleration)
-
-        self.turning = telemetry['turning']
-        self.position = mars_math.Point(*telemetry['position'])
-        self.velocity = telemetry['velocity']
-        self.direction = telemetry['direction']
-        for object in telemetry['objects']:
-            self.map.notice(object)
-        self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
-
-        self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
+    def recordCommunicationsData(self):
+        '''This keeps track of communication data, like the rate that the
+        controller is getting telemetry data.'''
 
         # INTERVALS LOGIC
         # The idea here is that when we're turning we schedule compensation
@@ -116,20 +103,22 @@ class RoverController(object):
         # If the amount of time we have to wait is longer than the average
         # amount of time between telemetry updates there's no reason in
         # scheduling the compensation since we'll have better logic soon
-        cur_time = time.time()
-        intervals = self.telemetry_intervals + [cur_time]
+        intervals = self.telemetry_intervals + [time.time()]
 
-        avg_interval = 0
+        self.avg_interval = 0
         if len(intervals) > 1:
-            avg_interval = sum(y - x for x, y in zip(intervals[:-1], intervals[1:])) / (len(intervals) - 1)
+            delta_sum = sum(y - x for x, y in zip(intervals[:-1], intervals[1:]))
+            interval_amt = (len(intervals) - 1)
+            self.avg_interval = delta_sum / interval_amt
 
+        self.telemetry_intervals = intervals
         if len(intervals) > self.MAX_INTERVALS:
-            self.telemetry_intervals = intervals[:-1]
-        else:
-            self.telemetry_intervals = intervals
+            self.telemetry_intervals = intervals[1:]
 
         # fudge factor
-        avg_interval *= 0.9
+        self.avg_interval *= 0.9
+
+    def findHomePoint(self):
 
         # We want to steer for the furthest point on the origin. The reason is
         # if we have a situation like this:
@@ -144,17 +133,39 @@ class RoverController(object):
         # be making a pretty hard right to make sure we don't shoot past the
         # target.
 
-        # Sample 4 points around the circle:
-        d = 0.0
-        home_point = None
-        normsq = lambda (x, y): (self.position.x - x)**2 + (self.position.y - y)**2
+        distance_sq = self.position.x**2 + self.position.y**2
 
-        # TODO: only need to do this if we're close to the home base
-        for pt in BASE_POINTS:
-            if normsq(pt) > d:
-                d = normsq(pt)
-                home_point = pt
-        origin_prime = mars_math.Point(*pt)
+        # It's wasteful to optimize this when we're far away
+        if distance_sq > 500:
+            return self.origin
+
+        # Sample 8 points around the circle:
+        normsq = lambda (x, y): (self.position.x - x)**2 + (self.position.y - y)**2
+        distances = [(pt, normsq(pt)) for pt in BASE_POINTS]
+        closest = mars_math.Point(*max(distances, key=lambda x: x[1])[0])
+        self.log.debug('Navigating with home as %s (I\'m at %s)' % (closest, self.position))
+        return closest
+
+    def setTelemetry(self, telemetry):
+        """This is called when telemetry is updated"""
+        self.telemetry_log.debug('set: %r', telemetry) 
+        if self.acceleration != telemetry['acceleration']:
+            self.acceleration = telemetry['acceleration']
+            self.telemetry_log.info('new acceleration: %r', self.acceleration)
+
+        self.turning = telemetry['turning']
+        self.position = mars_math.Point(*telemetry['position'])
+        self.velocity = telemetry['velocity']
+        self.direction = telemetry['direction']
+        for object in telemetry['objects']:
+            self.map.notice(object)
+        self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
+        self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
+
+        self.recordCommunicationsData()
+
+        origin_prime = self.findHomePoint()
+
         turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, origin_prime)
 
         # turning angle should be in the range -pi to pi
@@ -172,20 +183,22 @@ class RoverController(object):
                 self.client.sendMessage(Message.create(ACCELERATE))
             return
 
-        sched_time = min(t, avg_interval)
+        sched_time = min(t, self.avg_interval)
         if turn_angle.radians < 0:
             self.log.debug('Scheduling right turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
             self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
 
-            if 0 < compensate_time < avg_interval:
+            if 0 < compensate_time < self.avg_interval:
+                print 'going to compensate'
                 def turn_left():
+                    print 'compensating left'
                     self.client.sendMessage(Message.create(ACCELERATE, LEFT))
                 reactor.callLater(compensate_time, turn_left)
         else:
             self.log.debug('Scheduling left turn for %1.3f seconds(%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
             self.client.sendMessage(Message.create(ACCELERATE, LEFT))
  
-            if 0 < compensate_time < avg_interval:
+            if 0 < compensate_time < self.avg_interval:
                 def turn_right():
                     self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
                 reactor.callLater(compensate_time, turn_right)

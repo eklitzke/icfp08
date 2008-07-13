@@ -258,10 +258,8 @@ def find_heading(source_vec, objects, samples=64, max_dist=20.0):
 
     Arguments:
         source_vec: the source vector
-        omega: ?
         objects -- a list of objects on the map
-    Turn state should be a tuple holding the soft turn speed, hard turn speed,
-    and current turn state (in that order)."""
+    """
 
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
@@ -289,7 +287,7 @@ def find_heading(source_vec, objects, samples=64, max_dist=20.0):
         object_ranges.append((score, RadianRange.make_smallest_range(extent_dirs)))
 
     for score, obj_range in object_ranges:
-        print >> sys.stderr, "OBJECTS:", score, (obj_range.a * 57.7), (obj_range.b * 57.7)
+        print >> sys.stderr, "OBJECTS:", score, to_degrees(obj_range.a), to_degrees(obj_range.b)
     else:
         print >> sys.stderr, "NO OBJECTS"
 
@@ -319,12 +317,15 @@ def find_heading(source_vec, objects, samples=64, max_dist=20.0):
 
     # Put 1/6 behind the rover (TODO)
     directions = front_samples + side_samples
-    directions = [d + source_vec.angle.radians for d in directions]
+    #directions = [d + source_vec.angle.radians for d in directions]
 
     #assert all(-91 <= to_degrees(d) <= 91 for d in directions)
 
     force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= (constants.SMALL_ANGLE * constants.BLOAT))
-    angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
+    angle_score, angle = max(((occlusion_score(d) + origin_score(d), d) for d in directions), key=lambda x: x[0])
+
+    print >> sys.stderr, "CHOOSING ANGLE WAS:", to_degrees(angle)
+    angle += source_vec.angle.radians
     print >> sys.stderr, "CHOOSING ANGLE:", to_degrees(angle)
 
     return TurnAngle(angle), force_turn

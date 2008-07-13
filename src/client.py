@@ -145,9 +145,9 @@ class RoverController(object):
 
         # if the angle is small we should just keep moving forward
         if (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist > FORCE_TURN_DIST):
-            if self.turning == 'L':
+            if self.turning == 'L' or (self.turning == 'l' and turn_angle.degrees < 0):
                 self.client.sendMessage(Message.create(accel, RIGHT))
-            elif self.turning == 'R':
+            elif self.turning == 'R' or (self.turning == 'r' and turn_angle.degrees < 0):
                 self.client.sendMessage(Message.create(accel, LEFT))
             else:
                 self.client.sendMessage(Message.create(accel))

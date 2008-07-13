@@ -1,3 +1,30 @@
 Most Important
 -----------------
 FIXME in mars_math.find_heading
+
+Next
+------------------
+Add medium-turning angles. The idea is that if the angle that we should turn is
+small but not as small as SMALL_ANGLE we should ensure that the rover is not in
+a hard turn.
+
+Better long range steering (if we're really far from the origin and the
+direction is off by 5 degrees it's probably OK to adjust the turning anyway).
+
+
+Object turning for this (if confused, ask evan):
+
+############
+############
+############
+############
+############
+############
+
+
+
+          ####################
+          ####################
+          ####################
+          ####################
+   R

@@ -9,8 +9,10 @@ INTERVAL_SCALE = 0.95
 SMALL_ANGLE = 7.0
 
 # Ensure that the rover isn't in a hard turn for this kind of angle
-SOFT_ANGLE = 20.0
+SOFT_ANGLE = 15.0
 
 FORCE_TURN_DIST = 40.0
 
 FORCE_TURN_SQ = FORCE_TURN_DIST ** 2
+
+BLOAT = 1.3 # make things 30 percent bigger

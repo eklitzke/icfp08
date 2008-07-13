@@ -7,9 +7,6 @@ r = math.sin(math.pi / 4) * 5
 BASE_POINTS = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0), (r, r), (r, -r), (-r, -r), (-r, r))
 del r
 
-BLOAT = 1.3 # make things 30 percent bigger
-
-
 def to_radians(deg):
     return deg / 180.0 * math.pi
 
@@ -164,7 +161,7 @@ def distance(p1, p2):
 
 def to_extent(point, radius): 
     """get the square extents around a radius"""
-    big_radius = radius * BLOAT # (bloat the object)
+    big_radius = radius * constants.BLOAT # (bloat the object)
     minx, miny = point.x - big_radius, point.y - big_radius  
     maxx, maxy = point.x + big_radius, point.y + big_radius  
     return [Point(minx, miny),
@@ -191,7 +188,7 @@ class RadianRange(object):
         m1 = min(rads)
         m2 = max(rads)
         if bloat:
-            m1, m2 = BLOAT * m1, BLOAT * m2
+            m1, m2 = constants.BLOAT * m1, constants.BLOAT * m2
         if (m2 - m1) <= math.pi:
             return RadianRange(m1, m2) 
         else:
@@ -303,9 +300,11 @@ def find_heading(source_vec, omega, objects, samples=64):
     #
     # We should send a flag back or something...
 
+    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples)
+
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
 
-    return steer_to_angle(source_vec, omega, angle) + (origin_distance,)
+    return steer_to_angle(source_vec, omega, angle) + (origin_distance, force_turn)
 
 def steer_to_angle(rover_vec, omega, turning_angle):
     ang_to_dest = turning_angle

@@ -175,13 +175,15 @@ class RadianRange(object):
         else:
             return RadianRange(m2, m1)
 
-def radial_difference(d1, d2): 
-    d1 = math.fmod(d1 - d2, 2.0 * math.pi) 
-    d2 = math.fmod(d2 - d1, 2.0 * math.pi)
-    return min(d2, d1)
+def min_vector_difference(d1, d2): 
+    "find the smaller distance between two vectors"
+    v1 = (d1 - d2) % (2.0 * math.pi)
+    v2 = (d1 - d2) % (2.0 * math.pi)
+    return min(v1, v2)
 
-def radial_sim(d1, d2):
-    d = radial_difference(d1, d2) / (2 * math.pi)
+def vector_sim(d1, d2):
+    """Find the similarity of two vectors"""
+    d = min_vector_difference(d1, d2) / math.pi
     return 1.0 - d
 
 def find_headings(source, objects, samples=100):
@@ -189,7 +191,6 @@ def find_headings(source, objects, samples=100):
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
     # destination, the origin
-
     scores = [0] * samples
     origin = Point(0, 0)
     origin_dir = direction(point, origin)
@@ -206,7 +207,7 @@ def find_headings(source, objects, samples=100):
 
     def origin_score(direction):
         """return a score between 0 and 1 for how close the direction is toward the origin"""
-        return radial_sim(direction, origin_dir)
+        return vector_sim(direction, origin_dir)
 
     def occlusion_score(direction):
         """return a score between 0 and 1 for how occluded that direction is"""

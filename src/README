@@ -10,11 +10,12 @@ less than the predicted time for the next telemetry update then an event will
 be schedule to "unturn" in the future. The system is "tickless" in the sense
 that it only wakes up to call scheduled events and when it receives messages.
 
-Steering is pretty simple. At each telemetry update the controller tries to
-pick the angle that steers the rover closest to the home base while avoiding
-nearby obstacles (craters, boulders, or martians). There is some special logic
-for steering the client when it is very close to the home base (40 meters or
-so) to improve the hit accuracy.
+The steering logic has been encapsulated into what we call strategies. The
+strategies can be found in the file strategies.py. In short, to write a
+strategy you write a function that takes as input the rover object and returns
+an angle to steer the rover to. By decorating this function with the
+steer_rover function you'll get a new function that can be called by the
+controller to steer the rover. It's possible to switch strateies on the fly.
 
 The rover will almost always be accelerating except when making hard turns,
 when it may transition into a rolling or braking state.

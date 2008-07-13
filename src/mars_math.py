@@ -9,9 +9,6 @@ r = math.sin(math.pi / 4) * 5
 BASE_POINTS = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0), (r, r), (r, -r), (-r, -r), (-r, r))
 del r
 
-BLOAT = 1.3 # make things 30 percent bigger
-
-
 def to_radians(deg):
     return deg / 180.0 * math.pi
 
@@ -24,6 +21,12 @@ def normalize_turn_angle(rads):
     while rads < (-math.pi):
         rads = 2 * math.pi + rads
     return rads
+
+def is_right_turn(angle):
+    return angle < 0
+
+def is_left_turn(angle):
+    return angle > 0
 
 class Ellipse(object):
     '''Given the min/max start parameters sent by the server, calculates the
@@ -166,7 +169,7 @@ def distance(p1, p2):
 
 def to_extent(point, radius): 
     """get the square extents around a radius"""
-    big_radius = radius * BLOAT # (bloat the object)
+    big_radius = radius * constants.BLOAT # (bloat the object)
     minx, miny = point.x - big_radius, point.y - big_radius  
     maxx, maxy = point.x + big_radius, point.y + big_radius  
     return [Point(minx, miny),
@@ -193,7 +196,7 @@ class RadianRange(object):
         m1 = min(rads)
         m2 = max(rads)
         if bloat:
-            m1, m2 = BLOAT * m1, BLOAT * m2
+            m1, m2 = constants.BLOAT * m1, constants.BLOAT * m2
         if (m2 - m1) <= math.pi:
             return RadianRange(m1, m2) 
         else:
@@ -243,21 +246,22 @@ def get_origin_dir_and_distance(source_point):
     '''Auxilliary function used by find_heading, used to find the angle and
     distance to the origin. This is factored out this way to make some of the
     other functions more easily testable.'''
-    #origin = find_home_point(source_point)
-    origin = Point(0, 0)
+    origin = find_home_point(source_point)
+    #origin = Point(0, 0)
     origin_dir = direction(source_point, origin)
     origin_distance = distance(source_point, origin)
     return origin_dir, origin_distance
 
-def find_heading(source_vec, omega, objects, samples=360, max_dist=20.0):
+def find_heading(source_vec, turn_state, objects, samples=64, max_dist=20.0):
     """Find a direction (radians) that we should head to from source, given
     objects and samples
-    
+
     Arguments:
         source_vec: the source vector
         omega: ?
         objects -- a list of objects on the map
-    """
+    Turn state should be a tuple holding the soft turn speed, hard turn speed,
+    and current turn state (in that order)."""
 
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
@@ -331,15 +335,17 @@ def find_heading(source_vec, omega, objects, samples=360, max_dist=20.0):
     #
     # We should send a flag back or something...
 
+    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= constants.SMALL_ANGLE * constants.BLOAT)
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
     assert 0 <= angle <= (2 * math.pi) 
     print >> sys.stderr, "CHOOSING ANGLE:", (angle * 57.77)
-    return steer_to_angle(source_vec, omega, angle) + (origin_distance,)
+    return steer_to_angle(source_vec, turn_state, angle) + (origin_distance, force_turn)
 
-def steer_to_angle(rover_vec, omega, turning_angle):
-    ang_to_dest = turning_angle
+def steer_to_angle(rover_vec, turn_state, turning_angle):
     turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)
-    #print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
+    soft_turn, hard_turn, turn = turn_state
+    is_hard = (turn in ('r', 'R') and is_right_turn(turning_angle)) or (turn in ('l', 'L') and is_left_turn(turning_angle))
+    omega = hard_turn if is_hard else soft_turn
     t = abs(turning_angle / omega)
     return TurnAngle(turning_angle), t
 

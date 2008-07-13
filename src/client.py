@@ -129,7 +129,7 @@ class RoverController(object):
             return BRAKE
 
     def steerRover(self):
-        turn_angle, t, origin_dist = mars_math.find_heading(self.vector, self.max_turn, self.map.objects)
+        turn_angle, t, origin_dist, force_turn = mars_math.find_heading(self.vector, (self.max_turn, self.max_hard_turn, self.turning), self.map.objects)
         accel = self.determineAcceleration(turn_angle)
 
         # turning angle should be in the range -pi to pi
@@ -144,7 +144,7 @@ class RoverController(object):
         compensate_time = t
 
         # if the angle is small we should just keep moving forward
-        if (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist > FORCE_TURN_DIST):
+        if not force_turn and (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist > FORCE_TURN_DIST):
             if self.turning == 'L' or (self.turning == 'l' and turn_angle.degrees < 0):
                 self.client.sendMessage(Message.create(accel, RIGHT))
             elif self.turning == 'R' or (self.turning == 'r' and turn_angle.degrees < 0):

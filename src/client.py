@@ -1,13 +1,8 @@
 #!/usr/bin/env python
 
 import logging
-import select
-import socket
 import sys
 import time
-import pprint
-
-import random
 
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, ReconnectingClientFactory

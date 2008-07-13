@@ -247,7 +247,6 @@ def get_origin_dir_and_distance(source_point):
     distance to the origin. This is factored out this way to make some of the
     other functions more easily testable.'''
     origin = find_home_point(source_point)
-    #origin = Point(0, 0)
     origin_dir = direction(source_point, origin)
     origin_distance = distance(source_point, origin)
     return origin_dir, origin_distance

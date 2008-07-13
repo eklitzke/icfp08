@@ -302,7 +302,7 @@ def find_heading(source_vec, turn_state, objects, samples=64):
 
     directions = front_samples + side_samples
 
-    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= constants.SMALL_ANGLE * 1.4)
+    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= constants.SMALL_ANGLE * constants.BLOAT)
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
     return steer_to_angle(source_vec, turn_state, angle) + (origin_distance, force_turn)
 

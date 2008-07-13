@@ -1,5 +1,6 @@
 import math
 import time
+import heapq
 
 def A_star(start, goal, successors, edge_cost, heuristic_cost_to_goal=lambda position, goal:0):
   """Very general a-star search. Start and goal are objects to be compared
@@ -8,7 +9,6 @@ def A_star(start, goal, successors, edge_cost, heuristic_cost_to_goal=lambda pos
   cost to travel between two nodes, and heuristic_cost_to_goal is an
   admissible heuristic function that gives an underestimate of the cost from a
   position to the goal."""
-  import heapq
   closed = set()
   open = [(0, 0, (start,))]
   while open:
@@ -85,4 +85,3 @@ if __name__ == '__main__':
     m.path((-50.0, -50.0), (0, 0))
     te = time.time() 
     print te-ts
-

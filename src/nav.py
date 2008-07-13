@@ -62,26 +62,38 @@ class MapGrid(object):
         y -= self.height / 2.0
         return x, y
 
+    def add_obstacle(self, node, goal):
+        pass
+
     def path(self, start, goal):
         start_ = self.node(*start) 
         goal_ = self.node(*goal)
         result = A_star(start_, goal_, m.adjacent, m.cost, m.distance) 
-        print map(m.coord, result)
+        return map(m.coord, result)
 
     def adjacent(self, node): 
         i, j = node
-        if i < self.grid_width:
+        if i < self.grid_width: # RIGHT
             yield i + 1, j
-        if j < self.grid_height:
+        if j < self.grid_height: # UP
             yield i, j + 1
-        if i > 0:
+        if i < self.grid_width and j <= self.grid_height: # UP RIGHT
+            yield i + 1, j + 1 
+        if i < self.grid_width and j > 0: # DOWN RIGHT
+            yield i + 1, j - 1
+        if i > 0 and j > 0:  # DOWN LEFT
+            yield i + 1, j + 1
+        if i > 0: # LEFT
             yield i - 1, j
-        if j > 0:
+        if j > 0: # DOWN
             yield i, j - 1
+        if i > 0 and j <= self.grid_height: # UP LEFT
+            yield i - 1, j + 1
 
 if __name__ == '__main__':
     m = MapGrid(100, 100, 100)
     ts = time.time()
-    m.path((-50.0, -50.0), (0, 0))
+    path = m.path((-50.0, -50.0), (0, 0))
     te = time.time() 
+    print path
     print te-ts

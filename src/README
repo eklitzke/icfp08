@@ -19,3 +19,8 @@ controller to steer the rover. It's possible to switch strateies on the fly.
 
 The rover will almost always be accelerating except when making hard turns,
 when it may transition into a rolling or braking state.
+
+Our team is named in honor of the best lunch spot in SOMA[1]; it also doubles
+as the backronym "Making Everyone Here Fear Imperative Languages".
+
+[1] http://www.yelp.com/biz/mehfil-indian-cuisine-san-francisco

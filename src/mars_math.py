@@ -186,13 +186,41 @@ def vector_sim(d1, d2):
     d = min_vector_difference(d1, d2) / math.pi
     return 1.0 - d
 
+def find_home_point(pos):
+
+    # We want to steer for the furthest point on the origin. The reason is
+    # if we have a situation like this:
+    #
+    #  ------------------>..--..
+    #                   /       \
+    #                  |    H    |
+    #                   \       /
+    #                    ',.__.'
+    #
+    # Where the arrow shows the trajectory of the rover, we really want to
+    # be making a pretty hard right to make sure we don't shoot past the
+    # target.
+
+    distance_sq = pos.x**2 + self.pos.y**2
+
+    # It's wasteful to optimize this when we're far away
+    if distance_sq > 400:
+        return self.origin
+
+    # Sample 8 points around the circle:
+    normsq = lambda (x, y): (pos.x - x)**2 + (pos.y - y)**2
+    distances = [(pt, normsq(pt)) for pt in BASE_POINTS]
+    return Point(*max(distances, key=lambda x: x[1])[0])
+
 def find_heading(source_vec, omega, objects, samples=100):
     """Find a direction (radians) that we should head to from source, given objects and samples"""
     source = source_vec.pos
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
     # destination, the origin
-    origin = Point(0, 0)
+
+    origin = find_home_point(source)
+
     origin_dir = direction(source, origin)
     origin_distance = distance(source, origin)
 

@@ -118,32 +118,6 @@ class RoverController(object):
         # fudge factor
         self.avg_interval *= 0.9
 
-    def findHomePoint(self):
-
-        # We want to steer for the furthest point on the origin. The reason is
-        # if we have a situation like this:
-        #
-        #  ------------------>..--..
-        #                   /       \
-        #                  |    H    |
-        #                   \       /
-        #                    ',.__.'
-        #
-        # Where the arrow shows the trajectory of the rover, we really want to
-        # be making a pretty hard right to make sure we don't shoot past the
-        # target.
-
-        distance_sq = self.position.x**2 + self.position.y**2
-
-        # It's wasteful to optimize this when we're far away
-        if distance_sq > 400:
-            return self.origin
-
-        # Sample 8 points around the circle:
-        normsq = lambda (x, y): (self.position.x - x)**2 + (self.position.y - y)**2
-        distances = [(pt, normsq(pt)) for pt in BASE_POINTS]
-        return mars_math.Point(*max(distances, key=lambda x: x[1])[0])
-
     def steerToPoint(self, point=None):
         #if point is None:
         #    point = self.findHomePoint()

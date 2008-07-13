@@ -1,7 +1,9 @@
 import math
 import random
 
+import sys
 import constants
+from message import * 
 
 r = math.sin(math.pi / 4) * 5
 BASE_POINTS = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0), (r, r), (r, -r), (-r, -r), (-r, r))
@@ -241,14 +243,21 @@ def get_origin_dir_and_distance(source_point):
     '''Auxilliary function used by find_heading, used to find the angle and
     distance to the origin. This is factored out this way to make some of the
     other functions more easily testable.'''
-    origin = find_home_point(source_point)
+    #origin = find_home_point(source_point)
+    origin = Point(0, 0)
     origin_dir = direction(source_point, origin)
     origin_distance = distance(source_point, origin)
     return origin_dir, origin_distance
 
-def find_heading(source_vec, omega, objects, samples=64):
+def find_heading(source_vec, omega, objects, samples=360, max_dist=20.0):
     """Find a direction (radians) that we should head to from source, given
-    objects and samples"""
+    objects and samples
+    
+    Arguments:
+        source_vec: the source vector
+        omega: ?
+        objects -- a list of objects on the map
+    """
 
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
@@ -259,12 +268,26 @@ def find_heading(source_vec, omega, objects, samples=64):
     # this somehow prunes some of the objects out that aren't nearby
     object_ranges = []
     for obj in objects:
-        extent_points = to_extent(obj['position'], obj['radius'])
+        if obj['kind'] == HOME:
+            # we like home
+            continue
+        adj_obj_radius = (1.1 * obj['radius']) + 0.4
+        extent_points = to_extent(obj['position'], adj_obj_radius)
         extent_distance = min(distance(source_vec.pos, p) for p in extent_points)
+        # get rid of far away objects
         if extent_distance > origin_distance:
             continue
+        if extent_distance > max_dist:
+            continue
         extent_dirs = [direction(source_vec.pos, p, source_vec) for p in extent_points]
-        object_ranges.append(RadianRange.make_smallest_range(extent_dirs))
+        score = extent_distance / max_dist
+        assert score <= 1.0
+        object_ranges.append((score, RadianRange.make_smallest_range(extent_dirs)))
+
+    for score, obj_range in object_ranges:
+        print >> sys.stderr, "OBJECTS:", score, (obj_range.a * 57.7), (obj_range.b * 57.7)
+    else:
+        print >> sys.stderr, "NO OBJECTS"
 
     def origin_score(direction):
         """return a score between 0 and 1 for how close the direction is toward the origin"""
@@ -273,9 +296,9 @@ def find_heading(source_vec, omega, objects, samples=64):
     def occlusion_score(direction):
         """return a score between 0 and 1 for how occluded that direction is"""
         score = 1.0
-        for dir_range in object_ranges:
-            if direction in dir_range:
-                score = 0.0
+        for obj_score, obj_range in object_ranges:
+            if direction in obj_range:
+                score = min(obj_score, score)
                 break
         return score
 
@@ -292,9 +315,14 @@ def find_heading(source_vec, omega, objects, samples=64):
     side_samples += [-x for x in side_samples]
 
     # Put 1/6 behind the rover (TODO)
-
+    #for d in front_samples:
+    #    assert 0 <= d <= (math.pi * 2.0)
+    #for d in side_samples:
+    #    assert 0 <= d <= (math.pi * 2.0)
     directions = front_samples + side_samples
-
+    directions = [d % (math.pi * 2.0) for d in directions]
+    for d in directions:
+        assert 0 <= d <= (math.pi * 2.0)
     # FIXME
     # If there are any objects that are in a small angle radius for the rover
     # we need to do something smart here. Since the rover won't try to make a
@@ -304,7 +332,8 @@ def find_heading(source_vec, omega, objects, samples=64):
     # We should send a flag back or something...
 
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
-
+    assert 0 <= angle <= (2 * math.pi) 
+    print >> sys.stderr, "CHOOSING ANGLE:", (angle * 57.77)
     return steer_to_angle(source_vec, omega, angle) + (origin_distance,)
 
 def steer_to_angle(rover_vec, omega, turning_angle):

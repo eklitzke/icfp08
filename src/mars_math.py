@@ -310,8 +310,10 @@ def find_heading(source_vec, objects, samples=96, max_dist=40.0):
     side_samples += [-x for x in side_samples]
 
     # Put 1/6 behind the rover (TODO)
-    directions = front_samples + side_samples
-    directions = [d + source_vec.angle.radians for d in directions]
+    back_samples = [(math.pi / 2.0) * (float(i) * 12 / samples) + math.pi / 2.0 for i in range(samples / 12)]
+    back_samples = back_samples + [-x for x in back_samples]
+
+    directions = [d + source_vec.angle.radians for d in (front_samples + side_samples + back_samples)]
 
     #assert all(-91 <= to_degrees(d) <= 91 for d in directions)
 

@@ -1,6 +1,6 @@
 .PHONY: all clean compile test
 
-all: clean compile test
+all: clean compile
 
 test: 
 	make -C tests

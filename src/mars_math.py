@@ -152,18 +152,17 @@ def to_extent(point, radius):
     """get the square extents around a radius"""
     minx, miny = point.x - radius, point.y - radius  
     maxx, maxy = point.x + radius, point.y + radius  
-    points = [Point(minx, miny),
+    return [Point(minx, miny),
             Point(minx, maxy),
             Point(maxx, miny),
             Point(maxx, maxy)]
-    return points
 
 class RadianRange(object): 
     def __init__(self, a, b): 
         self.a = a
         self.b = b
 
-    def between(self, x): 
+    def __contains__(self, x): 
         """Test if x is between a and b"""
         a = self.a
         b = self.b
@@ -230,7 +229,7 @@ def get_origin_dir_and_distance(source_point):
     origin_distance = distance(source_point, origin)
     return origin_dir, origin_distance
 
-def find_heading(source_vec, omega, objects, samples=16):
+def find_heading(source_vec, omega, objects, samples=64):
     """Find a direction (radians) that we should head to from source, given
     objects and samples"""
 
@@ -242,13 +241,16 @@ def find_heading(source_vec, omega, objects, samples=16):
 
     # this somehow prunes some of the objects out that aren't nearby
     object_ranges = []
-    for point, radius in objects:
-        extent_points = to_extent(point, radius)
+    print objects
+    for obj in objects:
+        extent_points = to_extent(obj['position'], obj['radius'])
         extent_distance = min(distance(source_vec.pos, p) for p in extent_points)
         if extent_distance > origin_distance:
             continue
         extent_dirs = [direction(source_vec.pos, p) for p in extent_points]
         object_ranges.append(RadianRange.make_smallest_range(extent_dirs))
+
+    print object_ranges
 
     def origin_score(direction):
         """return a score between 0 and 1 for how close the direction is toward the origin"""
@@ -257,8 +259,8 @@ def find_heading(source_vec, omega, objects, samples=16):
     def occlusion_score(direction):
         """return a score between 0 and 1 for how occluded that direction is"""
         score = 1.0
-        for dist, dir_range in object_ranges:
-            if dir_range.contains(direction):
+        for dir_range in object_ranges:
+            if direction in dir_range:
                 score = 0.0
                 break
         return score

@@ -28,6 +28,9 @@ def similar(a, b, precision=0.95):
 def similar_position((x1, y1), (x2, y2)):
     return similar(x1, x2) and similar(y1, y2)
 
+def similar_position(p1, p2):
+    return similar(p1.x, p2.x) and similar(p1.y, p2.y)
+
 class Map(object): 
     log = logging.getLogger('Map') 
 
@@ -118,7 +121,7 @@ class RoverController(object):
         #if point is None:
         #    point = self.findHomePoint()
         #turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, point)
-        turn_angle, t = mars_math.find_heading(self.vector, self.max_turn, self.objects)
+        turn_angle, t = mars_math.find_heading(self.vector, self.max_turn, self.map.objects)
 
         # turning angle should be in the range -pi to pi
         assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians
@@ -167,6 +170,8 @@ class RoverController(object):
         self.velocity = telemetry['velocity']
         self.direction = telemetry['direction']
         for object in telemetry['objects']:
+            if 'position' in object:
+                object['position'] = mars_math.Point(*object['position'])
             self.map.notice(object)
         self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)

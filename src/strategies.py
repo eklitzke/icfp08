@@ -7,6 +7,13 @@ from constants import *
 from twisted.internet import reactor
 
 def steer_rover(f):
+	'''Decorates the function passed in by adding in steering logic. The
+	function it decorates should take one parameter (the rover object) and
+	return two parameters, turn angle and force turn. Turn angle is an Angle or
+	TurnAngle representing the desired turn angle, and force_turn should be
+	True if turning should be forced (it's better to have it as False, but of
+	course sometimes the rover *needs* to turn.'''
+
 	def new_func(rover):
 		'''This steers the rover. It takes two parameters:
 		* rover -- the rover object

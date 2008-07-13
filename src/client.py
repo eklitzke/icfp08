@@ -15,11 +15,9 @@ from twisted.internet.protocol import Protocol, ReconnectingClientFactory
 # local imports
 import event
 from message import * 
+from constants import *
 import mars_math
 import utils
-
-# The docs say the processing time is less than 20 milliseconds
-PROCESSING_TIME = 0.015
 
 def similar(a, b, precision=0.95): 
     d = abs(a - b)
@@ -114,8 +112,9 @@ class RoverController(object):
         if len(intervals) > self.MAX_INTERVALS:
             self.telemetry_intervals = intervals[1:]
 
-        # fudge factor
-        self.avg_interval *= 0.9
+        # to prevent an update from being sent if it's going to be really close
+        # to a telemetry update anyways
+        self.avg_interval *= INTERVAL_SCALE
 
     def determineAcceleration(self, angle):
         '''Determine whether to accelerate, roll, or brake based on the angle
@@ -130,7 +129,7 @@ class RoverController(object):
             return BRAKE
 
     def steerRover(self):
-        turn_angle, t = mars_math.find_heading(self.vector, self.max_turn, self.map.objects)
+        turn_angle, t, origin_dist = mars_math.find_heading(self.vector, self.max_turn, self.map.objects)
         accel = self.determineAcceleration(turn_angle)
 
         # turning angle should be in the range -pi to pi
@@ -138,10 +137,14 @@ class RoverController(object):
 
         # in this many milliseconds will send out another message reversing the
         # turn angle (i.e. to straighten out our path)
-        compensate_time = t - PROCESSING_TIME
+
+        # This is commented out because the processing time applies to
+        # both the initial message and the straighten up message...
+        #compensate_time = t - PROCESSING_TIME
+        compensate_time = t
 
         # if the angle is small we should just keep moving forward
-        if abs(turn_angle.degrees) < 5.0:
+        if (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist > FORCE_TURN_DIST):
             if self.turning == 'L':
                 self.client.sendMessage(Message.create(accel, RIGHT))
             elif self.turning == 'R':
@@ -150,8 +153,11 @@ class RoverController(object):
                 self.client.sendMessage(Message.create(accel))
             return
 
+        if (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist < FORCE_TURN_DIST):
+            self.log.info('Forcing turn due to home proximity')
+
         if t >= self.avg_interval:
-            sched_time = 'until next telemetry updated'
+            sched_time = 'until next telemetry update [~%1.4f seconds]' % (self.avg_interval / INTERVAL_SCALE)
         else:
             sched_time = 'for %1.3f seconds' % t
         if turn_angle.radians < 0:

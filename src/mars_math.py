@@ -1,6 +1,8 @@
 import math
 import random
 
+import constants
+
 r = math.sin(math.pi / 4) * 5
 BASE_POINTS = ((-5.0, 0.0), (0.0, 5.0), (5.0, 0.0), (-5.0, 0.0), (r, r), (r, -r), (-r, -r), (-r, r))
 del r
@@ -227,7 +229,7 @@ def find_home_point(pos):
     distance_sq = pos.x**2 + pos.y**2
 
     # It's wasteful to optimize this when we're far away
-    if distance_sq > 400:
+    if distance_sq > (constants.FORCE_TURN_SQ):
         return Point(0.0, 0.0)
 
     # Sample 8 points around the circle:
@@ -293,9 +295,17 @@ def find_heading(source_vec, omega, objects, samples=64):
 
     directions = front_samples + side_samples
 
+    # FIXME
+    # If there are any objects that are in a small angle radius for the rover
+    # we need to do something smart here. Since the rover won't try to make a
+    # turn of constants.SMALL_ANGLE we need to force it to turn if there's an
+    # object that it's going to hit (say 5 degrees to the side of it).
+    #
+    # We should send a flag back or something...
+
     angle = max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
 
-    return steer_to_angle(source_vec, omega, angle)
+    return steer_to_angle(source_vec, omega, angle) + (origin_distance,)
 
 def steer_to_angle(rover_vec, omega, turning_angle):
     ang_to_dest = turning_angle

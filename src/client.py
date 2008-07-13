@@ -18,6 +18,7 @@ from message import *
 from constants import *
 import mars_math
 import utils
+import strategies
 
 def similar(a, b, precision=0.95): 
     d = abs(a - b)
@@ -113,7 +114,7 @@ class RoverController(object):
             self.telemetry_intervals = intervals[1:]
 
         # to prevent an update from being sent if it's going to be really close
-        # to a telemetry update anyways
+         # to a telemetry update anyways
         self.avg_interval *= INTERVAL_SCALE
 
     def determineAcceleration(self, angle):
@@ -127,55 +128,6 @@ class RoverController(object):
             return ROLL
         else:
             return BRAKE
-
-    def steerRover(self):
-        turn_angle, t, origin_dist, force_turn = mars_math.find_heading(self.vector, (self.max_turn, self.max_hard_turn, self.turning), self.map.objects)
-        accel = self.determineAcceleration(turn_angle)
-
-        # turning angle should be in the range -pi to pi
-        assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians
-
-        # in this many milliseconds will send out another message reversing the
-        # turn angle (i.e. to straighten out our path)
-
-        # This is commented out because the processing time applies to
-        # both the initial message and the straighten up message...
-        #compensate_time = t - PROCESSING_TIME
-        compensate_time = t
-
-        # if the angle is small we should just keep moving forward
-        if not force_turn and (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist > FORCE_TURN_DIST):
-            if self.turning == 'L' or (self.turning == 'l' and turn_angle.degrees < 0):
-                self.client.sendMessage(Message.create(accel, RIGHT))
-            elif self.turning == 'R' or (self.turning == 'r' and turn_angle.degrees < 0):
-                self.client.sendMessage(Message.create(accel, LEFT))
-            else:
-                self.client.sendMessage(Message.create(accel))
-            return
-
-        if (abs(turn_angle.degrees) < SMALL_ANGLE) and (origin_dist < FORCE_TURN_DIST):
-            self.log.info('Forcing turn due to home proximity')
-
-        if t >= self.avg_interval:
-            sched_time = 'until next telemetry update [~%1.4f seconds]' % (self.avg_interval / INTERVAL_SCALE)
-        else:
-            sched_time = 'for %1.3f seconds' % t
-        if turn_angle.radians < 0:
-            self.log.debug('Scheduling right turn %s (targeting %3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
-            self.client.sendMessage(Message.create(accel, RIGHT))
-
-            if 0 < compensate_time < self.avg_interval:
-                def turn_left():
-                    self.client.sendMessage(Message.create(accel, LEFT))
-                reactor.callLater(compensate_time, turn_left)
-        else:
-            self.log.debug('Scheduling left turn %s (targeting %3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
-            self.client.sendMessage(Message.create(accel, LEFT))
- 
-            if 0 < compensate_time < self.avg_interval:
-                def turn_right():
-                    self.client.sendMessage(Message.create(accel, RIGHT))
-                reactor.callLater(compensate_time, turn_right)
 
     def setTelemetry(self, telemetry):
         """This is called when telemetry is updated"""
@@ -196,7 +148,9 @@ class RoverController(object):
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
         self.recordCommunicationsData()
-        self.steerRover()
+
+        # XXX: you can try out different strategies by altering this
+        strategies.basic_strategy(self)
 
     def setInitial(self, initial):
         """This is called with initial data"""

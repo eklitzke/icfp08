@@ -220,6 +220,14 @@ def find_heading(source, objects, samples=100):
     directions = ((2.0 * math.pi * float(i) / samples) for i in range(samples))
     return max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
 
+def steer_to_angle(rover_vec, omega, turning_angle):
+    ang_to_dest = turning_angle
+    turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)
+    #print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
+    t = abs(turning_angle / omega)
+    rover_vec.pos = rover_pos_copy
+    return TurnAngle(turning_angle), t
+
 def steer_to_point(rover_vec, omega, dest):
     '''rover_vec is a vector representing the rover.
     turning params describes how well the rover can turn
@@ -255,13 +263,6 @@ def steer_to_point(rover_vec, omega, dest):
         turning_angle = normalize_turn_angle(turning_angle + math.pi)
 
     # Adjust the turn angle to take into account the rover vector
-    ang_to_dest = turning_angle
-    turning_angle = normalize_turn_angle(turning_angle - rover_vec.angle.radians)
-    #print 'ANGLE TO DEST IS %1.3f, MY DIRECTION IS %1.3f, TURNING %1.3f' % (to_degrees(ang_to_dest), to_degrees(rover_vec.angle.radians), to_degrees(turning_angle))
-    t = abs(turning_angle / omega)
-
-    rover_vec.pos = rover_pos_copy
-
-    return TurnAngle(turning_angle), t
+    return steer_to_angle(rover_vector, omega, turning_angle)
 
 # vim: et ts=4 sw=4

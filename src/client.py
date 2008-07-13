@@ -117,11 +117,21 @@ class RoverController(object):
         # fudge factor
         self.avg_interval *= 0.9
 
-    def steerToPoint(self, point=None):
-        #if point is None:
-        #    point = self.findHomePoint()
-        #turn_angle, t = mars_math.steer_to_point(self.vector, self.max_turn, point)
+    def determineAcceleration(self, angle):
+        '''Determine whether to accelerate, roll, or brake based on the angle
+        that we're trying to turn.'''
+        degrees = abs(angle.degrees)
+
+        if degrees < 30.0:
+            return ACCELERATE
+        elif degrees < 60:
+            return ROLL
+        else:
+            return BRAKE
+
+    def steerRover(self):
         turn_angle, t = mars_math.find_heading(self.vector, self.max_turn, self.map.objects)
+        accel = self.determineAcceleration(turn_angle)
 
         # turning angle should be in the range -pi to pi
         assert abs(turn_angle.radians < (math.pi * 1.01)), "Invalid turn angle %s" % turn_angle.radians
@@ -133,29 +143,29 @@ class RoverController(object):
         # if the angle is small we should just keep moving forward
         if abs(turn_angle.degrees) < 5.0:
             if self.turning == 'L':
-                self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
+                self.client.sendMessage(Message.create(accel, RIGHT))
             elif self.turning == 'R':
-                self.client.sendMessage(Message.create(ACCELERATE, LEFT))
+                self.client.sendMessage(Message.create(accel, LEFT))
             else:
-                self.client.sendMessage(Message.create(ACCELERATE))
+                self.client.sendMessage(Message.create(accel))
             return
 
         sched_time = min(t, self.avg_interval)
         if turn_angle.radians < 0:
             self.log.debug('Scheduling right turn for %1.3f seconds (%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
-            self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
+            self.client.sendMessage(Message.create(accel, RIGHT))
 
             if 0 < compensate_time < self.avg_interval:
                 def turn_left():
-                    self.client.sendMessage(Message.create(ACCELERATE, LEFT))
+                    self.client.sendMessage(Message.create(accel, LEFT))
                 reactor.callLater(compensate_time, turn_left)
         else:
             self.log.debug('Scheduling left turn for %1.3f seconds (%3.3f degrees)' % (sched_time, abs(turn_angle.degrees),))
-            self.client.sendMessage(Message.create(ACCELERATE, LEFT))
+            self.client.sendMessage(Message.create(accel, LEFT))
  
             if 0 < compensate_time < self.avg_interval:
                 def turn_right():
-                    self.client.sendMessage(Message.create(ACCELERATE, RIGHT))
+                    self.client.sendMessage(Message.create(accel, RIGHT))
                 reactor.callLater(compensate_time, turn_right)
 
     def setTelemetry(self, telemetry):
@@ -177,7 +187,7 @@ class RoverController(object):
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
         self.recordCommunicationsData()
-        self.steerToPoint()
+        self.steerRover()
 
     def setInitial(self, initial):
         """This is called with initial data"""

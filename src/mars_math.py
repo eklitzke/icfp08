@@ -134,10 +134,20 @@ def edge_case(x, y):
     return abs(x) <= eps or abs(y) <= eps
 
 
-def direction(p1, p2):
+def direction(p1, p2, v=None):
     '''Return the direction from p1 to p2'''
     x = p2.x - p1.x
     y = p2.y - p1.y
+
+    # these are boundary cases (surprisingly I really did have to add this
+    # because it came up and I got a ZeroDivisionError)
+    if x == 0 or y == 0:
+        if not v:
+            p1_prime = p1.perturb()
+        else:
+            p1_prime = Point(p1.x + v.vx * 0.1, p1.y + v.vy * 0.1)
+        return direction(p1_prime, p2)
+
     theta = math.atan(y / x)
 
     ny = math.sin(theta)
@@ -241,16 +251,13 @@ def find_heading(source_vec, omega, objects, samples=64):
 
     # this somehow prunes some of the objects out that aren't nearby
     object_ranges = []
-    print objects
     for obj in objects:
         extent_points = to_extent(obj['position'], obj['radius'])
         extent_distance = min(distance(source_vec.pos, p) for p in extent_points)
         if extent_distance > origin_distance:
             continue
-        extent_dirs = [direction(source_vec.pos, p) for p in extent_points]
+        extent_dirs = [direction(source_vec.pos, p, source_vec) for p in extent_points]
         object_ranges.append(RadianRange.make_smallest_range(extent_dirs))
-
-    print object_ranges
 
     def origin_score(direction):
         """return a score between 0 and 1 for how close the direction is toward the origin"""

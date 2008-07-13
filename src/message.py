@@ -94,120 +94,123 @@ MARTIAN = 'm'
 
 
 class Message(object): 
-    @classmethod
-    def create(cls, accel=None, turn=None): 
-        """Create a message to send to the rover via the server.
-        Args:
-            accel -- None or str, or a accel state
-            turn -- None or str, one of turn states
-        """
-        msg = ""
-        if accel:
-            msg += accel
-            assert accel in [ACCELERATE, BRAKE]
+	@classmethod
+	def create(cls, accel=None, turn=None): 
+		"""Create a message to send to the rover via the server.
+		Args:
+			accel -- None or str, or a accel state
+			turn -- None or str, one of turn states
+		"""
+		msg = ""
+		if accel in (ACCELERATE, BRAKE):
+			msg += accel
+		else:
+			assert accel in (ROLL, None)
 
-        if turn:
-            assert turn in [LEFT, RIGHT]
-            msg += turn
-        assert msg
-        msg += ";"
-        return msg
+		if turn:
+			assert turn in [LEFT, RIGHT]
+			msg += turn
+		assert msg
+		msg += ";"
+		return msg
 
-    @classmethod
-    def parse(cls, msg):
-        """Parse a message from the server.
-        Messages should end with a ';'.
-        Returns:
-            {
-            'type': message type,
-            'time_stamp': time stamp 
-            'telemetry': telemetry 
-            ...
-            }
-        """
-        tokens = msg.split() 
-        assert tokens[-1] == ';'
-        tokens.pop()
-        assert tokens
-        result = {
-                'type': '',
-                'telemetry': {}, 
-                'time_stamp': -1,
-                'end': False,
-                'score': -1,
-                'duration': -1,
-                }
-        token = tokens.pop(0) 
-        if token == 'T':
-            result['type'] = 'telemetry'
-            result['time_stamp'] = cls.parse_float(tokens)
-            result['telemetry'] = cls.parse_telemetry(tokens)
-        elif token == 'B': 
-            result['type'] = 'crash'
-            result['time_stamp'] = cls.parse_float(tokens)
-        elif token == 'C':
-            result['type'] = 'crater'
-            result['time_stamp'] = cls.parse_float(tokens)
-        elif token == 'K':
-            result['type'] = 'killed'
-            result['time_stamp'] = cls.parse_float(tokens)
-        elif token == 'E':
-            result['type'] = 'end'
-            result['duration'] = cls.parse_float(tokens)
-        elif token == 'S':
-            result['type'] = 'success'
-            result['time_stamp'] = cls.parse_float(tokens)
-        elif token == 'I':
-            result['type'] = 'initial'
-            result['initial'] = cls.parse_initial(tokens)
-        else:
-            raise ValueError('unknown message type: ' + token)
-        return result
+	@classmethod
+	def parse(cls, msg):
+		"""Parse a message from the server.
+		Messages should end with a ';'.
+		Returns:
+			{
+			'type': message type,
+			'time_stamp': time stamp 
+			'telemetry': telemetry 
+			...
+			}
+		"""
+		tokens = msg.split() 
+		assert tokens[-1] == ';'
+		tokens.pop()
+		assert tokens
+		result = {
+				'type': '',
+				'telemetry': {}, 
+				'time_stamp': -1,
+				'end': False,
+				'score': -1,
+				'duration': -1,
+				}
+		token = tokens.pop(0) 
+		if token == 'T':
+			result['type'] = 'telemetry'
+			result['time_stamp'] = cls.parse_float(tokens)
+			result['telemetry'] = cls.parse_telemetry(tokens)
+		elif token == 'B': 
+			result['type'] = 'crash'
+			result['time_stamp'] = cls.parse_float(tokens)
+		elif token == 'C':
+			result['type'] = 'crater'
+			result['time_stamp'] = cls.parse_float(tokens)
+		elif token == 'K':
+			result['type'] = 'killed'
+			result['time_stamp'] = cls.parse_float(tokens)
+		elif token == 'E':
+			result['type'] = 'end'
+			result['duration'] = cls.parse_float(tokens)
+		elif token == 'S':
+			result['type'] = 'success'
+			result['time_stamp'] = cls.parse_float(tokens)
+		elif token == 'I':
+			result['type'] = 'initial'
+			result['initial'] = cls.parse_initial(tokens)
+		else:
+			raise ValueError('unknown message type: ' + token)
+		return result
 
-    @classmethod
-    def parse_initial(cls, tokens): 
-        x = {} 
-        for i in ['dx', 'dy', 'time_limit', 'min_sensor', 'max_sensor',
-                'max_speed', 'max_turn', 'max_hard_turn']:
-            x[i] = cls.parse_float(tokens)  
-        return x
+	@classmethod
+	def parse_initial(cls, tokens): 
+		x = {} 
+		for i in ['dx', 'dy', 'time_limit', 'min_sensor', 'max_sensor',
+				'max_speed', 'max_turn', 'max_hard_turn']:
+			x[i] = cls.parse_float(tokens)  
+		return x
 
-    @classmethod
-    def parse_controls(cls, tokens): 
-        accel, turn = tokens.pop(0)
-        assert accel in [ACCELERATE, BRAKE, ROLL]
-        assert turn in [LEFT, STRAIGHT, RIGHT, HARDLEFT, HARDRIGHT]
-        return accel, turn
+	@classmethod
+	def parse_controls(cls, tokens): 
+		accel, turn = tokens.pop(0)
+		assert accel in [ACCELERATE, BRAKE, ROLL]
+		assert turn in [LEFT, STRAIGHT, RIGHT, HARDLEFT, HARDRIGHT]
+		return accel, turn
 
-    @classmethod
-    def parse_telemetry(cls, tokens): 
-        tel = {} 
-        tel['acceleration'], tel['turning'] = cls.parse_controls(tokens)
-        tel['position'] = cls.parse_float(tokens), cls.parse_float(tokens) 
-        tel['direction'] = cls.parse_float(tokens) 
-        tel['velocity'] = cls.parse_float(tokens) 
-        tel['objects'] = cls.parse_objects(tokens) 
-        return tel
+	@classmethod
+	def parse_telemetry(cls, tokens): 
+		tel = {} 
+		tel['acceleration'], tel['turning'] = cls.parse_controls(tokens)
+		tel['position'] = cls.parse_float(tokens), cls.parse_float(tokens) 
+		tel['direction'] = cls.parse_float(tokens) 
+		tel['velocity'] = cls.parse_float(tokens) 
+		tel['objects'] = cls.parse_objects(tokens) 
+		return tel
 
-    @classmethod
-    def parse_objects(cls, tokens): 
-        objects = []
-        while tokens:
-            object = {}
-            objects.append(object) 
-            kind = tokens.pop(0)
-            object['kind'] = kind
-            assert kind in [MARTIAN, CRATER, BOULDER, HOME]
-            object['position'] = cls.parse_float(tokens), cls.parse_float(tokens) 
-            if object['kind'] == MARTIAN:
-                object['direction'] = cls.parse_float(tokens)
-                object['speed'] = cls.parse_float(tokens)
-                object['radius'] = None
-            else:
-                object['radius'] = cls.parse_float(tokens) 
-        return objects
+	@classmethod
+	def parse_objects(cls, tokens): 
+		objects = []
+		while tokens:
+			object = {}
+			objects.append(object) 
+			kind = tokens.pop(0)
+			object['kind'] = kind
+			assert kind in [MARTIAN, CRATER, BOULDER, HOME]
+			object['position'] = cls.parse_float(tokens), cls.parse_float(tokens) 
+			if object['kind'] == MARTIAN:
+				object['direction'] = cls.parse_float(tokens)
+				object['speed'] = cls.parse_float(tokens)
+				object['radius'] = None
+			else:
+				object['radius'] = cls.parse_float(tokens) 
+		return objects
 
-    @classmethod
-    def parse_float(cls, tokens): 
-        atom = tokens.pop(0) 
-        return float(atom) 
+	@classmethod
+	def parse_float(cls, tokens): 
+		atom = tokens.pop(0) 
+		return float(atom) 
+
+# vim: noet st=4 sw=4

@@ -9,10 +9,11 @@ class VectorSim(TestCase):
        d = vector_sim(0, math.pi) 
        assert d <= .05, d
 
-class FindHeadings(TestCase): 
+class FindHeading(TestCase): 
     def test(self): 
-        pass
-
+        start = Point(-5, 0)
+        result = find_heading(start, [], 360)
+        assert (result % (2 * math.pi)) <= 0.01, result
 
 if __name__ == '__main__':
     main() 

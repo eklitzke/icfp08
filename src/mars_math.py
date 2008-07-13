@@ -186,22 +186,21 @@ def vector_sim(d1, d2):
     d = min_vector_difference(d1, d2) / math.pi
     return 1.0 - d
 
-def find_headings(source, objects, samples=100):
+def find_heading(source, objects, samples=100):
     """Find a direction (radians) that we should head to from source, given objects and samples"""
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
     # destination, the origin
-    scores = [0] * samples
     origin = Point(0, 0)
-    origin_dir = direction(point, origin)
+    origin_dir = direction(source, origin)
     origin_distance = distance(source, origin)
 
     object_ranges = []
     for point, radius in objects:
         extent_points = to_extent(point, radius)
-        distance = min(distance(source, p) for p in extent_points)
-        if distance > origin_distance:
-                continue
+        extent_distance = min(distance(source, p) for p in extent_points)
+        if extent_distance > origin_distance:
+            continue
         extent_dirs = [direction(source, p) for p in extent_points]
         object_ranges.append(RadianRange.make_smallest_range(extent_dirs))
 
@@ -218,8 +217,8 @@ def find_headings(source, objects, samples=100):
                 break
         return score
 
-    directions = (2.0 * math.pi * (float(i)/samples) for i in range(samples))
-    return max(occlusion_score(d) + origin_score(d) for d in directions)
+    directions = ((2.0 * math.pi * float(i) / samples) for i in range(samples))
+    return max((occlusion_score(d) + origin_score(d), d) for d in directions)[1]
 
 def steer_to_point(rover_vec, omega, dest):
     '''rover_vec is a vector representing the rover.

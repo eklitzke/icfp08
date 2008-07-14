@@ -27,7 +27,16 @@ def A_star(start, goal, successors, edge_cost, heuristic_cost_to_goal=lambda pos
 
 class MapGrid(object):
     """a map grid centered on the origin with width w and height h and resolution
-    
+    map:
+    ...........w,h
+    .          .
+    .   0,0    . 
+    .          .
+    -w,-h.......          
+ 
+
+
+    grid:
     ............ (resolution w, resolution h)
     .          .
     .          . 
@@ -38,6 +47,7 @@ class MapGrid(object):
     def __init__(self, width, height, resolution): 
         self.width = float(width)
         self.height = float(height)
+        resolution = int(resolution)
         self.grid_width = resolution
         self.grid_height = resolution
         self.resolution = resolution
@@ -48,31 +58,57 @@ class MapGrid(object):
         adj_y = y + (self.height / 2.0)
         i = int(self.grid_width * adj_x / self.width)
         j = int(self.grid_height * adj_y / self.height)
-        return (i*self.resolution) + j
+        return self._encode(i, j)
 
     def cost(self, node1, node2): 
-        return 1.0
-    
+        return self.distance(node1, node2)
+
     def distance(self, node1, node2):
-        i1 = node1 % self.resolution
-        j1 = node1 % self.resolution
-        i2 = node2 % self.resolution
-        j2 = node2 % self.resolution
-        return math.hypot(i1 - i2, j1 - j2)
+        i1, j1 = self._decode(node1)
+        i2, j2 = self._decode(node2)
+        return math.hypot(float(i1 - i2), float(j1 - j2))
+
+    def _decode(self, node): 
+        i, j = node
+        return i, j
+
+    def _encode(self, i, j): 
+        assert 0 <= i < self.resolution, i
+        assert 0 <= j < self.resolution, j
+        return (i, j)
 
     def coord(self, node): 
-        i = node % self.resolution
-        j = node / self.resolution
+        i, j = self._decode(node)
+        assert i >= 0, i
+        assert j >= 0, j
         x = self.width * i / float(self.grid_width) 
         x -= self.width / 2.0
         y = self.height * j / float(self.grid_height)
         y -= self.height / 2.0
         return x, y
 
-    def add_obstacle(self, x, y, radius):
-        pass
+    def add_obstacle(self, point, radius):
+        """Add an obstacle to the grid
+        Args:
+        """
+        # find the units this will take up on the grid
+        gwidth = int(math.ceil((self.resolution / self.width) * radius))
+        gheight = int(math.ceil((self.resolution / self.height) * radius))
+
+        node = self.node(*point)
+        center_i, center_j = self._decode(node)
+        start_i = max(0, center_i - gwidth)
+        end_i = min(self.grid_width, center_i + gwidth)
+        start_j = max(0, center_j - gheight)
+        end_j = min(self.grid_height, center_j + gheight)
+
+        print "adding obstacle from:", self.coord(self._encode(start_i, start_j)), "to", self.coord(self._encode(end_i, end_j))
+        for i in range(start_i, end_i + 1):
+            for j in range(start_j, end_j + 1):
+                self.obstacles.add(self._encode(i, j))
 
     def path(self, start, goal):
+        """Find a path from start to goal"""
         start_ = self.node(*start) 
         goal_ = self.node(*goal)
         result = A_star(start_, goal_, m.adjacent, m.cost, m.distance) 
@@ -82,34 +118,35 @@ class MapGrid(object):
         for i in self._adjacent(node):
             if i not in self.obstacles:
                 yield i
-    
+
     def _adjacent(self, node): 
-        i = node % self.resolution
-        j = node / self.resolution
+        i, j = self._decode(node)
         res = self.resolution
         w = self.grid_width
         h = self.grid_height
-        if i < w: # RIGHT
-            yield ((i + 1) * res) + j
-        if j < h: # UP
-            yield (i * res) + j + 1
-        if i < w and j <= h: # UP RIGHT
-            yield ((i + 1) * res) + j + 1 
-        if i < w and j > 0: # DOWN RIGHT
-            yield ((i + 1) * res) + j - 1
+        if i + 1 < w: # RIGHT
+            yield self._encode(i + 1, j)
+        if j + 1 < h: # UP
+            yield self._encode(i, j + 1)
+        if i + 1 < w and j + 1 < h: # UP RIGHT
+            yield self._encode(i + 1, j + 1)
+        if i + 1 < w and j > 0: # DOWN RIGHT
+            yield self._encode(i + 1, j - 1)
         if i > 0 and j > 0:  # DOWN LEFT
-            yield ((i + 1) * res) + j + 1
+            yield self._encode(i - 1, j - 1)
         if i > 0: # LEFT
-            yield ((i - 1) * res) + j
+            yield self._encode(i - 1, j)
         if j > 0: # DOWN
-            yield (i * res) + j - 1
-        if i > 0 and j <= h: # UP LEFT
-            yield ((i-1) * res) + j + 1
+            yield self._encode(i, j - 1)
+        if i > 0 and j + 1 < h: # UP LEFT
+            yield self._encode(i - 1, j + 1)
 
 if __name__ == '__main__':
     m = MapGrid(10, 10, 200)
     ts = time.time()
-    path = m.path((-5, -5), (0, 0))
+    m.add_obstacle((1.0, 1.0), 1.0)
+    path = m.path((0, 0), (4.5, 4.5))
     te = time.time() 
     print path
     print te-ts
+

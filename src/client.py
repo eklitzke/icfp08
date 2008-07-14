@@ -82,6 +82,7 @@ class RoverController(object):
         # holds up to three intervals
         self.MAX_INTERVALS = 3
         self.telemetry_intervals = []
+        self.martian_intervals = []
 
     def recordCommunicationsData(self):
         '''This keeps track of communication data, like the rate that the
@@ -147,6 +148,24 @@ class RoverController(object):
         # XXX: you can try out different strategies by altering this
         strategies.basic_strategy(self)
 
+    def recordMartianTime(self, mtime):
+        '''Since the simulation appears to run it real time this isn't strictly
+        necessary, but it's nice to have it anyways since it is "correct".'''
+
+        mtime = mtime / 1000.0 # martian time is sent in milliseconds
+        self.latest_mtime = mtime
+        intervals = self.martian_intervals + [mtime]
+
+        self.avg_martian_interval = 0
+        if len(intervals) > 1:
+            delta_sum = sum(y - x for x, y in zip(intervals[:-1], intervals[1:]))
+            interval_amt = (len(intervals) - 1)
+            self.avg_martian_interval = delta_sum / interval_amt
+
+        self.martian_intervals = intervals
+        if len(intervals) > self.MAX_INTERVALS:
+            self.martian_intervals = intervals[1:]
+
     def setInitial(self, initial):
         """This is called with initial data"""
         self.log.debug('received initial data: %r', initial)
@@ -204,6 +223,7 @@ class TwistedClient(Protocol):
             msg -- dict, the parsed message dict, see Message
         """
         if msg['type'] == 'telemetry':
+            self.rover_ctl.recordMartianTime(msg['time_stamp'])
             self.rover_ctl.setTelemetry(msg['telemetry'])
         elif msg['type'] == 'initial':
             self.rover_ctl.setInitial(msg['initial'])

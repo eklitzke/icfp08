@@ -81,9 +81,7 @@ def steer_rover(f):
 				reactor.callLater(compensate_time, turn_right)
 	return new_func
 
-@steer_rover
-def basic_strategy(rover):
-	turn_angle, force_turn = mars_math.find_heading(rover.vector, rover.map.objects)
-	return turn_angle, force_turn
+# This is the default / most simple strategy
+basic_strategy = steer_rover(mars_math.find_heading)
 
 # vim: noet sw=4

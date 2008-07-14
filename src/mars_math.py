@@ -251,10 +251,14 @@ def get_origin_dir_and_distance(source_point):
     origin_distance = distance(source_point, origin)
     return origin_dir, origin_distance
 
-def predict_next_front(rover_vec, turn_rate):
-    pass
+def predict_turn_amt(rover, intervals=5):
+    '''The vector that the rover will probably be pointing in after some number of intervals'''
+    d = { 'L': rover.max_hard_turn, 'l': rover.max_turn, '-': 0.0, 'r': -rover.max_turn, 'R': -rover.max_hard_turn }
+    omega = d[rover.turning]
+    #print 'PREDICTING THAT I WILL HAVE TURNED %3.3f DEGREES' % to_degrees(rover.avg_martian_interval * omega * intervals)
+    return rover.avg_interval * omega * intervals
 
-def find_heading(source_vec, objects, samples=96, max_dist=40.0):
+def find_heading(rover, samples=96, max_dist=40.0):
     """Find a direction (radians) that we should head to from source, given
     objects and samples
 
@@ -262,6 +266,9 @@ def find_heading(source_vec, objects, samples=96, max_dist=40.0):
         source_vec: the source vector
         objects -- a list of objects on the map
     """
+
+    source_vec = rover.vector
+    objects = rover.map.objects
 
     # Say there are n different possible headings we can take 0 ... i .. 2 pi
     # The best heading is the one that is not occluded and that is nearest our
@@ -319,7 +326,7 @@ def find_heading(source_vec, objects, samples=96, max_dist=40.0):
     directions = sorted(d + source_vec.angle.radians for d in (front_samples + side_samples + back_samples))
 
     # Force a turn if objects are mostly in front of the rover
-    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= (constants.SMALL_ANGLE * constants.BLOAT))
+    force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d - predict_turn_amt(rover) )) <= (constants.SMALL_ANGLE * constants.BLOAT))
 
     angle_score, angle = max(((occlusion_score(d) + origin_score(d), d) for d in directions), key=lambda x: x[0])
     angle = TurnAngle(angle - source_vec.angle.radians)

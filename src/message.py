@@ -167,10 +167,13 @@ class Message(object):
 
 	@classmethod
 	def parse_initial(cls, tokens): 
+		import mars_math
 		x = {} 
 		for i in ['dx', 'dy', 'time_limit', 'min_sensor', 'max_sensor',
 				'max_speed', 'max_turn', 'max_hard_turn']:
 			x[i] = cls.parse_float(tokens)  
+		x['max_turn'] = mars_math.to_radians(x['max_turn'])
+		x['max_hard_turn'] = mars_math.to_radians(x['max_hard_turn'])
 		return x
 
 	@classmethod

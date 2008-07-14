@@ -251,6 +251,9 @@ def get_origin_dir_and_distance(source_point):
     origin_distance = distance(source_point, origin)
     return origin_dir, origin_distance
 
+def predict_next_front(rover_vec, turn_rate):
+    pass
+
 def find_heading(source_vec, objects, samples=96, max_dist=40.0):
     """Find a direction (radians) that we should head to from source, given
     objects and samples
@@ -313,9 +316,11 @@ def find_heading(source_vec, objects, samples=96, max_dist=40.0):
     back_samples = [(math.pi / 2.0) * (float(i) * 12 / samples) + math.pi / 2.0 for i in range(samples / 12)]
     back_samples = back_samples + [-x for x in back_samples]
 
-    directions = [d + source_vec.angle.radians for d in (front_samples + side_samples + back_samples)]
+    directions = sorted(d + source_vec.angle.radians for d in (front_samples + side_samples + back_samples))
 
+    # Force a turn if objects are mostly in front of the rover
     force_turn = any(occlusion_score(d) < 0.5 for d in front_samples if abs(to_degrees(d)) <= (constants.SMALL_ANGLE * constants.BLOAT))
+
     angle_score, angle = max(((occlusion_score(d) + origin_score(d), d) for d in directions), key=lambda x: x[0])
     angle = TurnAngle(angle - source_vec.angle.radians)
     return angle, force_turn

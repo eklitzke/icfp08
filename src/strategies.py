@@ -27,7 +27,7 @@ def steer_rover(f):
 
 		is_hard = (turn in ('r', 'R') and mars_math.is_right_turn(turn_angle)) or (turn in ('l', 'L') and mars_math.is_left_turn(turn_angle))
 		omega = hard_turn if is_hard else soft_turn
-		t = abs(turn_angle.degrees / omega) # FIXME is htis right?
+		t = abs(turn_angle.radians / omega)
 
 		origin_distance = mars_math.distance(rover.origin, rover.position)
 

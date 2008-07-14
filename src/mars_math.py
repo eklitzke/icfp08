@@ -47,7 +47,7 @@ class Point(object):
         self.x = float(x)
         self.y = float(y)
 
-    def add(p):
+    def add(self, p):
         return Point(self.x + p.x, self.y + p.y)
 
     def norm(self):

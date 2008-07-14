@@ -2,6 +2,8 @@ import math
 import time
 import heapq
 
+import mars_math
+
 def A_star(start, goal, successors, edge_cost, heuristic_cost_to_goal=lambda position, goal:0):
   """Very general a-star search. Start and goal are objects to be compared
   with the 'is' operator, successors is a function that, given a node, returns
@@ -85,15 +87,15 @@ class MapGrid(object):
         x -= self.width / 2.0
         y = self.height * j / float(self.grid_height)
         y -= self.height / 2.0
-        return x, y
+        return mars_math.Point(x, y)
 
     def add_obstacle(self, point, radius):
         """Add an obstacle to the grid
         Args:
         """
         # find the units this will take up on the grid
-        gwidth = int(math.ceil((self.resolution / self.width) * radius))
-        gheight = int(math.ceil((self.resolution / self.height) * radius))
+        gwidth = int(round((self.resolution / self.width) * radius, 0))
+        gheight = int(round((self.resolution / self.height) * radius, 0))
 
         node = self.node(*point)
         center_i, center_j = self._decode(node)
@@ -109,8 +111,8 @@ class MapGrid(object):
 
     def path(self, start, goal):
         """Find a path from start to goal"""
-        start_ = self.node(*start) 
-        goal_ = self.node(*goal)
+        start_ = self.node(start.x, start.y) 
+        goal_ = self.node(goal.x, goal.y)
         result = A_star(start_, goal_, self.adjacent, self.cost, self.distance) 
         return map(self.coord, result)
 

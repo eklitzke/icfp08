@@ -150,14 +150,21 @@ class RoverController(object):
         self.recordCommunicationsData()
 
         # XXX: you can try out different strategies by altering this
-        strategies.current_strategy(self)
+        if self.secondsBehind() < 0.5:
+            print "SECONDS BEHIND", self.secondsBehind()
+            strategies.current_strategy(self)
+
+    def secondsBehind(self): 
+        return time.time() - (self.time_start + self.latest_mtime)
 
     def recordMartianTime(self, mtime):
         '''Since the simulation appears to run it real time this isn't strictly
         necessary, but it's nice to have it anyways since it is "correct".'''
-
         mtime = mtime / 1000.0 # martian time is sent in milliseconds
+        if self.time_start == None:
+            self.time_start = time.time() - 0.02
         self.latest_mtime = mtime
+
         intervals = self.martian_intervals + [mtime]
 
         self.avg_martian_interval = 0
@@ -170,10 +177,14 @@ class RoverController(object):
         if len(intervals) > self.MAX_INTERVALS:
             self.martian_intervals = intervals[1:]
 
+    def endRun(self): 
+        self.time_start = None
+
     def setInitial(self, initial):
         """This is called with initial data"""
         self.log.debug('received initial data: %r', initial)
         self.map_size = initial['dx'], initial['dy']
+        self.time_start = None
         self.time_limit = initial['time_limit']
         self.min_sensor = initial['min_sensor']
         self.max_sensor = initial['max_sensor']
@@ -181,10 +192,7 @@ class RoverController(object):
         self.max_turn = mars_math.to_radians(initial['max_turn'])
         self.max_hard_turn = mars_math.to_radians(initial['max_hard_turn'])
         self.initialized = True
-        reactor.callLater(1.0, self.start)
 
-    def start(self): 
-        self.log.info('started')
         
 class TwistedClient(Protocol): 
     log = logging.getLogger('TwistedClient')
@@ -229,6 +237,7 @@ class TwistedClient(Protocol):
         elif msg['type'] == 'success':
             self.log.info('Successful!')
         elif msg['type'] == 'end':
+            self.rover_ctl.endRun()
             self.log.info('End of run (took %d martian seconds).' % msg['time_stamp'])
         else:
             self.log.error('unhandled message:%r', msg['type']) 

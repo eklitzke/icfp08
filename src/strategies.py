@@ -90,10 +90,10 @@ def steer_rover(f):
 
 class PathStrategy(object): 
     def __init__(self): 
-        self.last_update = 0
-        self.update_path_time = 0
-        self.update_path_interval = 1.0
-        self.current_path = []
+        self.last_path_update = 0
+        self.update_path_interval = 5.0
+        self.update_no = 0
+        self.path = []
         self.grid = None
 
     def getRotation(self, rover):
@@ -103,31 +103,61 @@ class PathStrategy(object):
         Returns:
             turn angle, force turn
         """
-        #print "telemetry updated", time.time() - self.last_update
-        self.last_update = time.time() 
-        if self.grid is None:
-            self.grid = MapGrid(rover.map_size[0], rover.map_size[1], 50)
-   
-        for object in rover.objects:
-            if object['radius']:
-                self.grid.add_obstacle((object['position'].x, object['position'].y), object['radius'])
+        # init the path
+        if self.path == [] or (self.update_path_interval < time.time() - self.last_path_update):
+            self.grid = MapGrid(rover.map_size[0], rover.map_size[1], 100 if self.update_no == 0 else 201)
+            print "UPDATING PATHS", self.update_path_interval, self.last_path_update, time.time() - self.last_path_update
+            process_start = time.time()
+            self.recalculatePath(rover) 
+            process_end = time.time()
+
+        shift = rover.secondsBehind()
+        print "TIME SHIFT", shift
+        expected_pos = rover.vector.future_position(shift + 0.0)
+
+        # find the nearest path member and head to the next one
+        def dist(p):
+            return math.hypot(expected_pos.x - p.x, expected_pos.y - p.y)
         
-        pos = rover.vector.pos
-        path = self.grid.path((pos.x, pos.y), (0, 0)) 
-        next_square = path[1]
-        print "heading to", next_square
-        angle = mars_math.direction(rover.vector.pos, mars_math.Point(*path[2]))
+        nearest_idx = min((dist(p), i) for i, p in enumerate(self.path))[1]
+        try:
+            next = self.path[nearest_idx + 1]
+        except IndexError:
+            next = self.path[-1]
+
+        angle = mars_math.direction(expected_pos, next)
         ta = mars_math.TurnAngle(angle - rover.vector.angle.radians)
-        print "Turn to ", ta.radians, angle
+        print "Heading to", next, ta.radians * 57.77
         return ta, False
 
+    def recalculatePath(self, rover): 
+        print "RECALCULATE"
+        for object in rover.objects:
+            if object['kind'] in (CRATER, BOULDER):
+                self.grid.add_obstacle((object['position'].x, object['position'].y), max(2, (1.3 * object['radius'])))
+        pos = rover.vector.pos
+        path = self.grid.path(pos, mars_math.find_home_point(rover.vector.pos))
+        # add every 15 meters
+        self.path = [path.pop(0)]
+        end = path.pop()
+        while path:
+            point = path.pop(0)
+            prev = self.path[-1]
+            dist = math.hypot(prev.x - point.x, prev.y - point.y)
+            if dist < 15:
+                continue
+            self.path.append(point)
+        self.path.append(end)
+        self.last_path_update = time.time()
 
 # This is the default / most simple strategy.  This is called on every
 # setTelemetry update
 basic_strategy = steer_rover(mars_math.find_heading)
 
+path_strategizer = PathStrategy()
+
 # Strategy to use A* calc'ed paths
-path_strategy = steer_rover(PathStrategy().getRotation)
+path_strategy = steer_rover(path_strategizer.getRotation)
 
 current_strategy = path_strategy
 # vim: noet sw=4

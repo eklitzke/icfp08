@@ -150,9 +150,12 @@ class RoverController(object):
         self.recordCommunicationsData()
 
         # XXX: you can try out different strategies by altering this
-        if self.secondsBehind() < 0.5:
+        if self.secondsBehind() < 0.2:
             print "SECONDS BEHIND", self.secondsBehind()
             strategies.current_strategy(self)
+        else:
+            print "SKIPPING STEERING THIS UPDATE"
+
 
     def secondsBehind(self): 
         return time.time() - (self.time_start + self.latest_mtime)

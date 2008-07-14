@@ -6,6 +6,7 @@ import time
 import mars_math
 from message import *
 from constants import *
+from nav import * 
 from twisted.internet import reactor
 from nav import MapGrid
 
@@ -113,7 +114,7 @@ class PathStrategy(object):
 
         shift = rover.secondsBehind()
         print "TIME SHIFT", shift
-        expected_pos = rover.vector.future_position(shift + 0.0)
+        expected_pos = rover.vector.future_position(shift + .1)
 
         # find the nearest path member and head to the next one
         def dist(p):
@@ -136,7 +137,11 @@ class PathStrategy(object):
             if object['kind'] in (CRATER, BOULDER):
                 self.grid.add_obstacle((object['position'].x, object['position'].y), max(2, (1.3 * object['radius'])))
         pos = rover.vector.pos
-        path = self.grid.path(pos, mars_math.find_home_point(rover.vector.pos))
+        try:
+            path = self.grid.path(pos, mars_math.find_home_point(rover.vector.pos))
+        except PathNotFound:
+            print "UNABLE TO CALC PATH"
+            return
         # add every 15 meters
         self.path = [path.pop(0)]
         end = path.pop()
@@ -144,7 +149,7 @@ class PathStrategy(object):
             point = path.pop(0)
             prev = self.path[-1]
             dist = math.hypot(prev.x - point.x, prev.y - point.y)
-            if dist < 15:
+            if dist < 17:
                 continue
             self.path.append(point)
         self.path.append(end)

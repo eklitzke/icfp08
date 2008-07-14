@@ -4,6 +4,9 @@ import heapq
 
 import mars_math
 
+class PathNotFound(Exception):
+    pass
+
 def A_star(start, goal, successors, edge_cost, heuristic_cost_to_goal=lambda position, goal:0):
   """Very general a-star search. Start and goal are objects to be compared
   with the 'is' operator, successors is a function that, given a node, returns
@@ -25,7 +28,7 @@ def A_star(start, goal, successors, edge_cost, heuristic_cost_to_goal=lambda pos
       new_cost_so_far = cost_so_far + edge_cost(tail, new_tail)
       new_heuristic_cost = new_cost_so_far + heuristic_cost_to_goal(new_tail, goal)
       heapq.heappush(open, (new_cost_so_far, new_heuristic_cost, path+(new_tail,)))
-  raise RuntimeError('No path found.')
+  raise PathNotFound('No path found.')
 
 class MapGrid(object):
     """a map grid centered on the origin with width w and height h and resolution

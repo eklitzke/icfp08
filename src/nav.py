@@ -111,8 +111,8 @@ class MapGrid(object):
         """Find a path from start to goal"""
         start_ = self.node(*start) 
         goal_ = self.node(*goal)
-        result = A_star(start_, goal_, m.adjacent, m.cost, m.distance) 
-        return map(m.coord, result)
+        result = A_star(start_, goal_, self.adjacent, self.cost, self.distance) 
+        return map(self.coord, result)
 
     def adjacent(self, node): 
         for i in self._adjacent(node):
@@ -142,7 +142,7 @@ class MapGrid(object):
             yield self._encode(i - 1, j + 1)
 
 if __name__ == '__main__':
-    m = MapGrid(10, 10, 200)
+    m = MapGrid(10, 10, 100)
     ts = time.time()
     m.add_obstacle((1.0, 1.0), 1.0)
     path = m.path((0, 0), (4.5, 4.5))

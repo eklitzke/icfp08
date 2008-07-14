@@ -32,16 +32,7 @@ class Map(object):
         self.size = -1, -1
         self.objects = []
 
-    def notice(self, object):
-        if object['kind'] == MARTIAN:
-            return
-        for o in self.objects:
-            if o['kind'] == object['kind'] \
-                    and similar_position(object['position'], o['position']):
-                break
-        else:
-            self.log.debug('found new object: %r', object)
-            self.objects.append(object)
+    
 
 class RoverController(object):
     """responsible for sending and receiving messages from the client
@@ -76,13 +67,26 @@ class RoverController(object):
         self.controls = ''
         self.initialized = False
         self.acceleration = ROLL
-        self.map = Map() 
         self.origin = mars_math.Point(0.0, 0.0)
+        self.objects = []
+        self.martians = []
 
         # holds up to three intervals
         self.MAX_INTERVALS = 3
         self.telemetry_intervals = []
         self.martian_intervals = []
+
+    def noticeObject(self, object):
+        if object['kind'] == MARTIAN:
+            self.martians.append(object)
+
+        for o in self.objects:
+            if o['kind'] == object['kind'] \
+                    and similar_position(object['position'], o['position']):
+                break
+        else:
+            self.log.debug('found new object: %r', object)
+            self.objects.append(object)
 
     def recordCommunicationsData(self):
         '''This keeps track of communication data, like the rate that the
@@ -139,14 +143,14 @@ class RoverController(object):
         for object in telemetry['objects']:
             if 'position' in object:
                 object['position'] = mars_math.Point(*object['position'])
-            self.map.notice(object)
+            self.noticeObject(object)
         self.direction = mars_math.Angle(mars_math.to_radians(telemetry['direction']))
         self.vector = mars_math.Vector(self.position, self.velocity, self.direction)
 
         self.recordCommunicationsData()
 
         # XXX: you can try out different strategies by altering this
-        strategies.basic_strategy(self)
+        strategies.current_strategy(self)
 
     def recordMartianTime(self, mtime):
         '''Since the simulation appears to run it real time this isn't strictly
@@ -169,7 +173,7 @@ class RoverController(object):
     def setInitial(self, initial):
         """This is called with initial data"""
         self.log.debug('received initial data: %r', initial)
-        self.map.size = initial['dx'], initial['dy']
+        self.map_size = initial['dx'], initial['dy']
         self.time_limit = initial['time_limit']
         self.min_sensor = initial['min_sensor']
         self.max_sensor = initial['max_sensor']
@@ -178,15 +182,10 @@ class RoverController(object):
         self.max_hard_turn = mars_math.to_radians(initial['max_hard_turn'])
         self.initialized = True
         reactor.callLater(1.0, self.start)
-        #self.start() 
 
     def start(self): 
         self.log.info('started')
-        self.client.sendMessage(Message.create(ACCELERATE))
-        def stop():
-            self.client.sendMessage(Message.create(BRAKE)) 
-        reactor.callLater(3.0, stop)
-
+        
 class TwistedClient(Protocol): 
     log = logging.getLogger('TwistedClient')
     log.setLevel(logging.INFO)

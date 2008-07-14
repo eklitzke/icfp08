@@ -1,10 +1,14 @@
 '''Steering strategies'''
 
 import math
+import time
+
 import mars_math
 from message import *
 from constants import *
 from twisted.internet import reactor
+from nav import MapGrid
+
 
 def steer_rover(f):
 	'''Decorates the function passed in by adding in steering logic. The
@@ -12,7 +16,10 @@ def steer_rover(f):
 	return two parameters, turn angle and force turn. Turn angle is an Angle or
 	TurnAngle representing the desired turn angle, and force_turn should be
 	True if turning should be forced (it's better to have it as False, but of
-	course sometimes the rover *needs* to turn.'''
+	course sometimes the rover *needs* to turn.  
+    
+    This is called whenever setTelemetry is called so it should work in ~< 10ms
+    '''
 
 	def new_func(rover):
 		'''This steers the rover. It takes two parameters:
@@ -81,7 +88,46 @@ def steer_rover(f):
 				reactor.callLater(compensate_time, turn_right)
 	return new_func
 
-# This is the default / most simple strategy
+class PathStrategy(object): 
+    def __init__(self): 
+        self.last_update = 0
+        self.update_path_time = 0
+        self.update_path_interval = 1.0
+        self.current_path = []
+        self.grid = None
+
+    def getRotation(self, rover):
+        """Get the desired turn angle for the rover
+        Args:
+            rover
+        Returns:
+            turn angle, force turn
+        """
+        #print "telemetry updated", time.time() - self.last_update
+        self.last_update = time.time() 
+        if self.grid is None:
+            self.grid = MapGrid(rover.map_size[0], rover.map_size[1], 50)
+   
+        for object in rover.objects:
+            if object['radius']:
+                self.grid.add_obstacle((object['position'].x, object['position'].y), object['radius'])
+        
+        pos = rover.vector.pos
+        path = self.grid.path((pos.x, pos.y), (0, 0)) 
+        next_square = path[1]
+        print "heading to", next_square
+        angle = mars_math.direction(rover.vector.pos, mars_math.Point(*path[2]))
+        ta = mars_math.TurnAngle(angle - rover.vector.angle.radians)
+        print "Turn to ", ta.radians, angle
+        return ta, False
+
+
+# This is the default / most simple strategy.  This is called on every
+# setTelemetry update
 basic_strategy = steer_rover(mars_math.find_heading)
 
+# Strategy to use A* calc'ed paths
+path_strategy = steer_rover(PathStrategy().getRotation)
+
+current_strategy = path_strategy
 # vim: noet sw=4
